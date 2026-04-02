@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="EVA" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>EVA Companion</title>
+
+  <!-- PWA Manifest inline via data URI -->
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBIENvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBhMGEwZiIsInRoZW1lX2NvbG9yIjoiIzAwZTVmZiJ9" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height: 100%; width: 100%; background: #0a0a0f; overflow: hidden; }
+    body { font-family: 'Rajdhani', sans-serif; -webkit-font-smoothing: antialiased; }
+    input:focus { outline: none; }
+    button { cursor: pointer; }
+    button:active { opacity: 0.8; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ═══════════════════════════════════════════════
+    //  EVA GraphQL API
+    // ═══════════════════════════════════════════════
+    const EVA_API = "https://api.eva.gg/graphql";
+    const SEASON_ID = 8;
+
+    const PROFILE_QUERY = `query getPublicPlayerByUsername($username: String!, $seasonId: Int, $includeStatistics: Boolean = false) {
+      getPublicPlayerByUsername(username: $username) {
+        id
+        user { id username displayName }
+        authorization { actions }
+        seasonPass { active }
+        experience(seasonId: $seasonId) {
+          experience experienceForCurrentLevel experienceForNextLevel level
+          levelProgressionPercentage seasonId
+          authorization { actions }
+        }
+        ...PlayerStatisticsField @include(if: $includeStatistics)
+      }
+    }
+    fragment PlayerStatisticsField on Player {
+      statistics(seasonId: $seasonId) {
+        gameId userId seasonId
+        data {
+          gameCount gameTime gameVictoryCount gameDefeatCount gameDrawCount
+          inflictedDamage bestInflictedDamage kills deaths assists
+          killDeathRatio killsByDeaths traveledDistance traveledDistanceAverage bestKillStreak
+        }
+      }
+    }`;
+
+    const HISTORY_QUERY = `query useAfterhGameHistoryPageLastOnly($userId: Int!, $seasonId: Int!) {
+      listLastAfterhGameHistoriesByUserAndSeason(userId: $userId, seasonId: $seasonId) {
+        id createdAt
+        data {
+          duration outcome waveCount success generatorPercent puzzleFailedCount plasmaHitCount
+          teamOne { score name }
+          teamTwo { score name }
+          round floor
+        }
+        players {
+          id userId
+          data {
+            niceName rank team score outcome kills deaths assists
+            inflictedDamage firedAccuracy totalKills
+          }
+        }
+        terrain {
+          id name
+          location { id name department identifier country language status }
+        }
+        map {
+          id name identifier maxPlayerCount isNew
+          imageUrl backgroundImageUrl minimapImageUrl
+          modeList { id identifier category }
+        }
+        mode { id identifier category }
+      }
+    }`;
+
+    async function fetchProfile(username) {
+      const res = await fetch(EVA_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationName: "getPublicPlayerByUsername",
+          query: PROFILE_QUERY,
+          variables: { username, seasonId: SEASON_ID, includeStatistics: true },
+        }),
+      });
+      const json = await res.json();
+      return json.data?.getPublicPlayerByUsername || null;
+    }
+
+    async function fetchHistory(userId) {
+      const res = await fetch(EVA_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationName: "useAfterhGameHistoryPageLastOnly",
+          query: HISTORY_QUERY,
+          variables: { userId, seasonId: SEASON_ID },
+        }),
+      });
+      const json = await res.json();
+      return json.data?.listLastAfterhGameHistoriesByUserAndSeason || [];
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Storage
+    // ═══════════════════════════════════════════════
+    const STORAGE_FRIENDS = "eva-companion-friends";
+    const STORAGE_MYTAG = "eva-companion-mytag";
+
+    function loadFriends() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_FRIENDS) || "[]"); }
+      catch { return []; }
+    }
+    function saveFriends(list) { localStorage.setItem(STORAGE_FRIENDS, JSON.stringify(list)); }
+    function loadMyTag() { return localStorage.getItem(STORAGE_MYTAG) || ""; }
+    function saveMyTag(tag) { localStorage.setItem(STORAGE_MYTAG, tag); }
+
+    // ═══════════════════════════════════════════════
+    //  Helpers
+    // ═══════════════════════════════════════════════
+    const P = {
+      bg: "#0a0a0f", surface: "#12121a", surfaceLight: "#1a1a26", surfaceHover: "#22222f",
+      accent: "#00e5ff", accentDim: "#00e5ff22", accentGlow: "#00e5ff55",
+      win: "#00e676", winDim: "#00e67622", lose: "#ff5252", loseDim: "#ff525222",
+      gold: "#ffd740", goldDim: "#ffd74022",
+      text: "#e8e8f0", textSec: "#8888a0", textDim: "#555570", border: "#2a2a3a",
+    };
+    const F = { main: "'Rajdhani', sans-serif", mono: "'Share Tech Mono', monospace", title: "'Orbitron', sans-serif" };
+
+    function fmtTime(s) {
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      return h > 0 ? `${h}h${String(m).padStart(2,"0")}` : `${m}min`;
+    }
+    function fmtDT(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    }
+    function fmtDist(m) { return m >= 1000 ? (m/1000).toFixed(1)+" km" : Math.round(m)+" m"; }
+    function wr(v,t) { return t ? ((v/t)*100).toFixed(1) : "0"; }
+
+    // ═══════════════════════════════════════════════
+    //  Components
+    // ═══════════════════════════════════════════════
+
+    function Spinner() {
+      return React.createElement("div", { style: { display:"flex", justifyContent:"center", padding: 60 } },
+        React.createElement("div", { style: {
+          width:36, height:36, border:`3px solid ${P.border}`, borderTopColor:P.accent,
+          borderRadius:"50%", animation:"spin 0.8s linear infinite"
+        }})
+      );
+    }
+
+    function Empty({ text }) {
+      return React.createElement("div", { style: {
+        padding:40, textAlign:"center", color:P.textDim, fontFamily:F.mono, fontSize:13
+      }}, text);
+    }
+
+    function XPBar({ exp }) {
+      if (!exp) return null;
+      const pct = exp.levelProgressionPercentage;
+      return React.createElement("div", { style: { width:"100%", marginTop:8 } },
+        React.createElement("div", { style: { display:"flex", justifyContent:"space-between", fontSize:11, color:P.textSec, marginBottom:3, fontFamily:F.mono } },
+          React.createElement("span", null, "LVL "+exp.level),
+          React.createElement("span", null, pct.toFixed(1)+"%"),
+          React.createElement("span", null, "LVL "+(exp.level+1))
+        ),
+        React.createElement("div", { style: { width:"100%", height:6, background:P.surfaceLight, borderRadius:3, overflow:"hidden" } },
+          React.createElement("div", { style: {
+            width: pct+"%", height:"100%", borderRadius:3,
+            background: `linear-gradient(90deg, ${P.accent}, #0088a0)`,
+            boxShadow: `0 0 10px ${P.accentGlow}`, transition:"width 1s ease"
+          }})
+        )
+      );
+    }
+
+    function StatCard({ label, value, sub, color }) {
+      return React.createElement("div", { style: {
+        background:P.surfaceLight, borderRadius:8, padding:"10px 12px",
+        flex:"1 1 45%", minWidth:0, borderLeft:`3px solid ${color||P.accent}`
+      }},
+        React.createElement("div", { style: { fontSize:11, color:P.textSec, textTransform:"uppercase", letterSpacing:1, fontFamily:F.mono } }, label),
+        React.createElement("div", { style: { fontSize:22, fontWeight:700, color:color||P.text, fontFamily:F.main, marginTop:2 } }, value),
+        sub && React.createElement("div", { style: { fontSize:11, color:P.textDim, marginTop:1 } }, sub)
+      );
+    }
+
+    function MatchCard({ game, meId }) {
+      const [open, setOpen] = useState(false);
+      const me = game.players.find(p => p.userId === meId);
+      const isWin = me?.data.outcome === "Victory";
+      const isFFA = game.mode.identifier === "FreeForAll";
+      const bc = isWin ? P.win : P.lose;
+      const bg = isWin ? P.winDim : P.loseDim;
+
+      const sorted = [...game.players].sort((a,b) => {
+        if (a.data.outcome === "Victory" && b.data.outcome !== "Victory") return -1;
+        if (b.data.outcome === "Victory" && a.data.outcome !== "Victory") return 1;
+        return a.data.rank - b.data.rank;
+      });
+
+      return React.createElement("div", {
+        className: "fade-in",
+        style: { background:P.surface, borderRadius:10, marginBottom:8, border:`1px solid ${bc}33`, overflow:"hidden" },
+        onClick: () => setOpen(!open)
+      },
+        // Summary row
+        React.createElement("div", { style: { padding:"10px 14px", display:"flex", alignItems:"center", gap:10 } },
+          React.createElement("div", { style: {
+            width:40, minWidth:40, height:40, borderRadius:8, background:bg,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:11, fontWeight:800, color:bc, fontFamily:F.mono, letterSpacing:1
+          }}, isWin ? "W" : "L"),
+          React.createElement("div", { style: { flex:1, minWidth:0 } },
+            React.createElement("div", { style: { display:"flex", justifyContent:"space-between", alignItems:"center" } },
+              React.createElement("span", { style: { fontSize:14, fontWeight:700, color:P.text, fontFamily:F.main } }, game.map.name),
+              React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, fmtDT(game.createdAt))
+            ),
+            me && React.createElement("div", { style: { display:"flex", gap:12, marginTop:3, fontSize:12 } },
+              React.createElement("span", { style: { color:P.textSec } }, isFFA ? "FFA" : game.data.teamOne.score+" - "+game.data.teamTwo.score),
+              React.createElement("span", { style: { color:P.accent, fontFamily:F.mono, fontWeight:600 } }, me.data.kills+"/"+me.data.deaths+"/"+me.data.assists),
+              React.createElement("span", { style: { color:P.textDim } }, me.data.inflictedDamage+" dmg"),
+              React.createElement("span", { style: { color:P.textDim } }, "#"+me.data.rank)
+            )
+          ),
+          React.createElement("div", { style: { fontSize:14, color:P.textDim, transform: open?"rotate(180deg)":"rotate(0)", transition:"transform 0.2s" } }, "▼")
+        ),
+        // Expanded
+        open && React.createElement("div", { style: { padding:"0 10px 10px", borderTop:`1px solid ${P.border}` } },
+          React.createElement("div", { style: { display:"grid", gridTemplateColumns:"1fr 32px 32px 32px 50px 42px", gap:2, padding:"8px 4px 4px", fontSize:10, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } },
+            React.createElement("span",null,"Joueur"), React.createElement("span",null,"K"), React.createElement("span",null,"D"),
+            React.createElement("span",null,"A"), React.createElement("span",null,"Dmg"), React.createElement("span",null,"Acc")
+          ),
+          ...sorted.map(p => {
+            const isMe = p.userId === meId;
+            const pW = p.data.outcome === "Victory";
+            return React.createElement("div", { key: p.id, style: {
+              display:"grid", gridTemplateColumns:"1fr 32px 32px 32px 50px 42px",
+              gap:2, padding:"5px 4px", fontSize:12, fontFamily:F.mono,
+              background: isMe ? P.accentDim : "transparent", borderRadius:4, color:P.text
+            }},
+              React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isMe?P.accent:pW?P.win:P.lose, fontWeight:isMe?700:400 } }, p.data.niceName),
+              React.createElement("span",null,p.data.kills), React.createElement("span",null,p.data.deaths),
+              React.createElement("span",null,p.data.assists), React.createElement("span",null,p.data.inflictedDamage),
+              React.createElement("span",null,(p.data.firedAccuracy*100).toFixed(0)+"%")
+            );
+          }),
+          React.createElement("div", { style: { display:"flex", gap:8, marginTop:6, fontSize:10, color:P.textDim, fontFamily:F.mono } },
+            React.createElement("span",null,game.mode.identifier),
+            React.createElement("span",null,"•"),
+            React.createElement("span",null,fmtTime(game.data.duration)),
+            React.createElement("span",null,"•"),
+            React.createElement("span",null,game.terrain.location.name)
+          )
+        )
+      );
+    }
+
+    function ProfileView({ data, history, loading }) {
+      if (loading) return React.createElement(Spinner);
+      if (!data) return React.createElement(Empty, { text: "Profil non trouvé ou privé" });
+      const s = data.statistics?.data;
+      const exp = data.experience;
+      const u = data.user;
+
+      return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
+        // Header card
+        React.createElement("div", { style: {
+          background:`linear-gradient(135deg, ${P.surface} 0%, #0d1520 100%)`,
+          borderRadius:12, padding:20, marginBottom:16, border:`1px solid ${P.border}`,
+          position:"relative", overflow:"hidden"
+        }},
+          React.createElement("div", { style: { position:"absolute", top:-30, right:-30, width:120, height:120, borderRadius:"50%", background:P.accentDim, filter:"blur(40px)" } }),
+          React.createElement("div", { style: { display:"flex", alignItems:"center", gap:14, position:"relative" } },
+            React.createElement("div", { style: {
+              width:56, height:56, borderRadius:"50%",
+              background:`linear-gradient(135deg, ${P.accent}, #0088a0)`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:22, fontWeight:800, color:P.bg, fontFamily:F.main,
+              boxShadow:`0 0 20px ${P.accentGlow}`
+            }}, u.displayName.charAt(0)),
+            React.createElement("div", { style: { flex:1 } },
+              React.createElement("div", { style: { fontSize:22, fontWeight:700, color:P.text, fontFamily:F.main } }, u.displayName),
+              React.createElement("div", { style: { fontSize:12, color:P.textSec, fontFamily:F.mono } }, u.username),
+              React.createElement("div", { style: { display:"flex", alignItems:"center", gap:8, marginTop:4 } },
+                data.seasonPass?.active && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.goldDim, color:P.gold, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SEASON PASS"),
+                React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.accentDim, color:P.accent, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SAISON "+exp?.seasonId)
+              )
+            )
+          ),
+          React.createElement(XPBar, { exp })
+        ),
+
+        // Stats
+        s && React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 } },
+          React.createElement(StatCard, { label:"Parties", value:s.gameCount, sub:fmtTime(s.gameTime)+" de jeu" }),
+          React.createElement(StatCard, { label:"Win Rate", value:wr(s.gameVictoryCount,s.gameCount)+"%", color:P.win, sub:s.gameVictoryCount+"V / "+s.gameDefeatCount+"D" }),
+          React.createElement(StatCard, { label:"K/D", value:s.killsByDeaths.toFixed(2), color:s.killsByDeaths>=1.5?P.win:s.killsByDeaths>=1?P.gold:P.lose, sub:s.kills+"K / "+s.deaths+"D / "+s.assists+"A" }),
+          React.createElement(StatCard, { label:"Précision", value:(s.killDeathRatio*100).toFixed(1)+"%" }),
+          React.createElement(StatCard, { label:"Best Streak", value:s.bestKillStreak, color:P.gold, sub:"kills consécutifs" }),
+          React.createElement(StatCard, { label:"Best Dégâts", value:s.bestInflictedDamage, color:P.accent, sub:"en une partie" }),
+          React.createElement(StatCard, { label:"Dégâts totaux", value:(s.inflictedDamage/1000).toFixed(1)+"k" }),
+          React.createElement(StatCard, { label:"Distance", value:fmtDist(s.traveledDistance), sub:fmtDist(s.traveledDistanceAverage)+" /partie" })
+        ),
+
+        // History
+        history && history.length > 0 && React.createElement("div", null,
+          React.createElement("div", { style: { fontSize:14, fontWeight:700, color:P.textSec, marginBottom:10, textTransform:"uppercase", letterSpacing:2, fontFamily:F.mono } }, "Dernières parties"),
+          ...history.map(g => React.createElement(MatchCard, { key:g.id, game:g, meId:u.id }))
+        )
+      );
+    }
+
+    function CompareView({ a, b }) {
+      if (!a || !b) return React.createElement(Empty, { text:"Sélectionnez deux profils" });
+      const sA = a.statistics?.data, sB = b.statistics?.data;
+      if (!sA || !sB) return React.createElement(Empty, { text:"Stats indisponibles" });
+
+      const rows = [
+        { l:"Niveau", a:a.experience?.level, b:b.experience?.level },
+        { l:"Parties", a:sA.gameCount, b:sB.gameCount },
+        { l:"Win Rate", a:wr(sA.gameVictoryCount,sA.gameCount)+"%", b:wr(sB.gameVictoryCount,sB.gameCount)+"%", nA:+wr(sA.gameVictoryCount,sA.gameCount), nB:+wr(sB.gameVictoryCount,sB.gameCount) },
+        { l:"K/D", a:sA.killsByDeaths.toFixed(2), b:sB.killsByDeaths.toFixed(2), nA:sA.killsByDeaths, nB:sB.killsByDeaths },
+        { l:"Kills", a:sA.kills, b:sB.kills },
+        { l:"Deaths", a:sA.deaths, b:sB.deaths, inv:true },
+        { l:"Assists", a:sA.assists, b:sB.assists },
+        { l:"Best Streak", a:sA.bestKillStreak, b:sB.bestKillStreak },
+        { l:"Best Dégâts", a:sA.bestInflictedDamage, b:sB.bestInflictedDamage },
+        { l:"Dégâts totaux", a:Math.round(sA.inflictedDamage/1000)+"k", b:Math.round(sB.inflictedDamage/1000)+"k", nA:sA.inflictedDamage, nB:sB.inflictedDamage },
+      ];
+
+      return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
+        React.createElement("div", { style: {
+          display:"grid", gridTemplateColumns:"1fr auto 1fr", gap:0, marginBottom:16,
+          background:P.surface, borderRadius:12, overflow:"hidden", border:`1px solid ${P.border}`
+        }},
+          React.createElement("div", { style: { padding:16, textAlign:"center" } },
+            React.createElement("div", { style: { fontSize:18, fontWeight:700, color:P.accent, fontFamily:F.main } }, a.user.displayName),
+            React.createElement("div", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, "LVL "+a.experience?.level)
+          ),
+          React.createElement("div", { style: { padding:16, display:"flex", alignItems:"center", color:P.textDim, fontWeight:800, fontFamily:F.main, fontSize:18 } }, "VS"),
+          React.createElement("div", { style: { padding:16, textAlign:"center" } },
+            React.createElement("div", { style: { fontSize:18, fontWeight:700, color:P.lose, fontFamily:F.main } }, b.user.displayName),
+            React.createElement("div", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, "LVL "+b.experience?.level)
+          )
+        ),
+        ...rows.map((r,i) => {
+          const nA = r.nA ?? (typeof r.a==="number"?r.a:0);
+          const nB = r.nB ?? (typeof r.b==="number"?r.b:0);
+          const aW = r.inv ? nA<nB : nA>nB;
+          const bW = r.inv ? nB<nA : nB>nA;
+          return React.createElement("div", { key:i, style: {
+            display:"grid", gridTemplateColumns:"1fr auto 1fr",
+            padding:"8px 14px", borderBottom:`1px solid ${P.border}`,
+            background: i%2===0 ? P.surface : "transparent"
+          }},
+            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:aW?P.win:P.text } }, r.a),
+            React.createElement("div", { style: { fontSize:11, color:P.textSec, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, padding:"0 12px", display:"flex", alignItems:"center" } }, r.l),
+            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:bW?P.win:P.text } }, r.b)
+          );
+        })
+      );
+    }
+
+    function FriendsView({ friends, onSelect, onRemove, onAdd }) {
+      const [tag, setTag] = useState("");
+      const [name, setName] = useState("");
+
+      const add = () => {
+        if (!tag.trim()) return;
+        onAdd({ tag:tag.trim(), name:name.trim()||tag.split("#")[0] });
+        setTag(""); setName("");
+      };
+
+      const inputStyle = {
+        width:"100%", padding:"10px 12px", background:P.surfaceLight,
+        border:`1px solid ${P.border}`, borderRadius:8, color:P.text,
+        fontFamily:F.mono, fontSize:14, marginBottom:8
+      };
+
+      return React.createElement("div", null,
+        // Add form
+        React.createElement("div", { style: { background:P.surface, borderRadius:12, padding:16, marginBottom:16, border:`1px solid ${P.border}` } },
+          React.createElement("div", { style: { fontSize:13, fontWeight:700, color:P.textSec, marginBottom:10, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } }, "Ajouter un ami"),
+          React.createElement("input", { value:tag, onChange:e=>setTag(e.target.value), placeholder:"Tag EVA (ex: Pseudo#123456)", style:inputStyle, onKeyDown:e=>e.key==="Enter"&&add() }),
+          React.createElement("input", { value:name, onChange:e=>setName(e.target.value), placeholder:"Surnom (optionnel)", style:{...inputStyle, fontFamily:F.main, marginBottom:10}, onKeyDown:e=>e.key==="Enter"&&add() }),
+          React.createElement("button", { onClick:add, style: {
+            width:"100%", padding:"10px", background:P.accent, color:P.bg,
+            border:"none", borderRadius:8, fontWeight:800, fontSize:14, fontFamily:F.main,
+            letterSpacing:1, textTransform:"uppercase"
+          }}, "+ Ajouter")
+        ),
+        // List
+        friends.length === 0
+          ? React.createElement(Empty, { text:"Aucun ami ajouté" })
+          : friends.map((f,i) => React.createElement("div", {
+              key:i, className:"fade-in",
+              style: {
+                background:P.surface, borderRadius:10, padding:"12px 14px", marginBottom:6,
+                border:`1px solid ${P.border}`, display:"flex", alignItems:"center", gap:12, cursor:"pointer"
+              },
+              onClick: () => onSelect(f)
+            },
+              React.createElement("div", { style: {
+                width:40, height:40, borderRadius:"50%",
+                background:`linear-gradient(135deg, ${P.surfaceLight}, ${P.surfaceHover})`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:16, fontWeight:700, color:P.accent, fontFamily:F.main,
+                border:`2px solid ${P.accent}33`
+              }}, f.name.charAt(0).toUpperCase()),
+              React.createElement("div", { style: { flex:1 } },
+                React.createElement("div", { style: { fontSize:15, fontWeight:700, color:P.text, fontFamily:F.main } }, f.name),
+                React.createElement("div", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, f.tag)
+              ),
+              React.createElement("button", {
+                onClick: e => { e.stopPropagation(); onRemove(i); },
+                style: { background:P.loseDim, border:"none", borderRadius:6, padding:"6px 10px", color:P.lose, fontSize:12, fontFamily:F.mono, fontWeight:700 }
+              }, "✕")
+            ))
+      );
+    }
+
+    function InfoView() {
+      const items = [
+        { icon:"📍", label:"Adresse", value:"Rue François Cevert\nZAC Pariwest, 78310 Maurepas" },
+        { icon:"🕐", label:"Horaires", value:"Semaine : 13h30 – 22h\nWeek-end : 9h30 – 22h" },
+        { icon:"🎮", label:"Jeux", value:"After-H Battle Arena (PvP)\nMoon of the Dead (PvE)\nEVA Darts" },
+        { icon:"💰", label:"Tarifs", value:"Session 40min : ~20€ (heure creuse)\nAbonnements disponibles" },
+        { icon:"👥", label:"Capacité", value:"Jusqu'à 10 joueurs par arène\n2 arènes disponibles" },
+      ];
+      return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
+        React.createElement("div", { style: {
+          background:`linear-gradient(135deg, ${P.surface} 0%, #0d1520 100%)`,
+          borderRadius:12, padding:20, marginBottom:16, border:`1px solid ${P.border}`, position:"relative", overflow:"hidden"
+        }},
+          React.createElement("div", { style: { position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"#ff572233", filter:"blur(40px)" } }),
+          React.createElement("div", { style: { fontSize:22, fontWeight:800, color:P.text, fontFamily:F.main, marginBottom:4, position:"relative" } }, "EVA Maurepas"),
+          React.createElement("div", { style: { fontSize:12, color:P.textSec, fontFamily:F.mono, position:"relative" } }, "Arène VR • Yvelines (78)")
+        ),
+        ...items.map((it,i) => React.createElement("div", { key:i, style: {
+          background:P.surface, borderRadius:10, padding:"12px 14px", marginBottom:6, border:`1px solid ${P.border}`, display:"flex", gap:12
+        }},
+          React.createElement("span", { style: { fontSize:20 } }, it.icon),
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize:12, color:P.textSec, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, marginBottom:2 } }, it.label),
+            React.createElement("div", { style: { fontSize:14, color:P.text, fontFamily:F.main, whiteSpace:"pre-line" } }, it.value)
+          )
+        )),
+        React.createElement("a", {
+          href:"https://www.eva.gg/fr-FR/locations/maurepas-78", target:"_blank", rel:"noopener noreferrer",
+          style: {
+            display:"block", textAlign:"center", padding:"14px", marginTop:12,
+            background:`linear-gradient(135deg, ${P.accent}, #0088a0)`,
+            color:P.bg, borderRadius:10, fontWeight:800, fontSize:15,
+            fontFamily:F.main, textDecoration:"none", letterSpacing:1,
+            textTransform:"uppercase", boxShadow:`0 4px 20px ${P.accentGlow}`
+          }
+        }, "Réserver une session")
+      );
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Setup screen (first launch)
+    // ═══════════════════════════════════════════════
+    function SetupScreen({ onDone }) {
+      const [tag, setTag] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+
+      const submit = async () => {
+        if (!tag.trim()) return;
+        setLoading(true); setError("");
+        try {
+          const p = await fetchProfile(tag.trim());
+          if (p) { saveMyTag(tag.trim()); onDone(tag.trim()); }
+          else { setError("Profil non trouvé. Vérifie le tag (avec le #)."); }
+        } catch { setError("Erreur de connexion."); }
+        setLoading(false);
+      };
+
+      return React.createElement("div", { style: {
+        minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", padding:32, background:P.bg
+      }},
+        React.createElement("div", { style: {
+          fontSize:36, fontWeight:800, fontFamily:F.title, marginBottom:4,
+          background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
+          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
+        }}, "EVA"),
+        React.createElement("div", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono, marginBottom:40 } }, "companion"),
+        React.createElement("div", { style: { fontSize:14, color:P.textSec, marginBottom:16, textAlign:"center" } }, "Entre ton tag EVA pour commencer"),
+        React.createElement("input", {
+          value:tag, onChange:e=>setTag(e.target.value),
+          placeholder:"Pseudo#123456",
+          style: {
+            width:"100%", maxWidth:300, padding:"14px 16px", background:P.surfaceLight,
+            border:`1px solid ${P.border}`, borderRadius:10, color:P.text,
+            fontFamily:F.mono, fontSize:16, textAlign:"center", marginBottom:12
+          },
+          onKeyDown: e => e.key==="Enter" && submit()
+        }),
+        error && React.createElement("div", { style: { color:P.lose, fontSize:12, marginBottom:8, fontFamily:F.mono } }, error),
+        React.createElement("button", {
+          onClick: submit, disabled: loading,
+          style: {
+            width:"100%", maxWidth:300, padding:"14px", background:P.accent, color:P.bg,
+            border:"none", borderRadius:10, fontWeight:800, fontSize:16, fontFamily:F.main,
+            letterSpacing:1, textTransform:"uppercase", opacity:loading?0.6:1
+          }
+        }, loading ? "Chargement..." : "C'est parti")
+      );
+    }
+
+    // ═══════════════════════════════════════════════
+    //  Main App
+    // ═══════════════════════════════════════════════
+    const TABS = [
+      { id:"profile", label:"Profil", icon:"⚡" },
+      { id:"friends", label:"Amis", icon:"👥" },
+      { id:"compare", label:"VS", icon:"⚔️" },
+      { id:"info", label:"Salle", icon:"🏟️" },
+    ];
+
+    function App() {
+      const [myTag, setMyTag] = useState(loadMyTag);
+      const [tab, setTab] = useState("profile");
+      const [myProfile, setMyProfile] = useState(null);
+      const [myHistory, setMyHistory] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [friends, setFriends] = useState(loadFriends);
+      const [friendProfile, setFriendProfile] = useState(null);
+      const [friendHistory, setFriendHistory] = useState([]);
+      const [friendLoading, setFriendLoading] = useState(false);
+      const [subTab, setSubTab] = useState("list");
+      const [searchTag, setSearchTag] = useState("");
+      const [searchResult, setSearchResult] = useState(null);
+      const [searchLoading, setSearchLoading] = useState(false);
+
+      // Load my profile when tag is set
+      useEffect(() => {
+        if (!myTag) return;
+        (async () => {
+          setLoading(true);
+          try {
+            const p = await fetchProfile(myTag);
+            setMyProfile(p);
+            if (p?.user?.id) { const h = await fetchHistory(p.user.id); setMyHistory(h); }
+          } catch(e) { console.error(e); }
+          setLoading(false);
+        })();
+      }, [myTag]);
+
+      const loadFriend = useCallback(async (f) => {
+        setSubTab("profile"); setFriendLoading(true); setFriendProfile(null); setFriendHistory([]);
+        try {
+          const p = await fetchProfile(f.tag);
+          setFriendProfile(p);
+          if (p?.user?.id) { const h = await fetchHistory(p.user.id); setFriendHistory(h); }
+        } catch(e) { console.error(e); }
+        setFriendLoading(false);
+      }, []);
+
+      const addFriend = useCallback(f => {
+        const u = [...friends, f]; setFriends(u); saveFriends(u);
+      }, [friends]);
+
+      const removeFriend = useCallback(i => {
+        const u = friends.filter((_,j)=>j!==i); setFriends(u); saveFriends(u);
+      }, [friends]);
+
+      const handleSearch = async () => {
+        if (!searchTag.trim()) return;
+        setSearchLoading(true); setSearchResult(null);
+        try { setSearchResult(await fetchProfile(searchTag.trim())); }
+        catch(e) { console.error(e); }
+        setSearchLoading(false);
+      };
+
+      if (!myTag) return React.createElement(SetupScreen, { onDone: setMyTag });
+
+      return React.createElement("div", { style: {
+        maxWidth:480, margin:"0 auto", height:"100vh", background:P.bg, color:P.text,
+        fontFamily:F.main, display:"flex", flexDirection:"column"
+      }},
+        // Header
+        React.createElement("div", { style: {
+          padding:"14px 16px 10px", background:P.surface, borderBottom:`1px solid ${P.border}`,
+          flexShrink:0
+        }},
+          React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
+            React.createElement("div", null,
+              React.createElement("span", { style: {
+                fontSize:20, fontWeight:800, fontFamily:F.title,
+                background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
+                WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
+              }}, "EVA"),
+              React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono, marginLeft:6 } }, "companion")
+            ),
+            React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } }, "S"+SEASON_ID)
+          )
+        ),
+
+        // Content
+        React.createElement("div", { style: { flex:1, padding:16, paddingBottom:72, overflowY:"auto", WebkitOverflowScrolling:"touch" } },
+
+          tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading }),
+
+          tab === "friends" && (
+            subTab === "profile" && friendProfile
+              ? React.createElement("div", null,
+                  React.createElement("button", {
+                    onClick: () => { setSubTab("list"); setFriendProfile(null); },
+                    style: { background:"none", border:"none", color:P.accent, fontFamily:F.mono, fontSize:13, padding:"4px 0", marginBottom:12, display:"flex", alignItems:"center", gap:4 }
+                  }, "← Retour"),
+                  React.createElement(ProfileView, { data:friendProfile, history:friendHistory, loading:friendLoading })
+                )
+              : React.createElement(FriendsView, { friends, onSelect:loadFriend, onRemove:removeFriend, onAdd:addFriend })
+          ),
+
+          tab === "compare" && React.createElement("div", null,
+            React.createElement("div", { style: { background:P.surface, borderRadius:12, padding:16, marginBottom:16, border:`1px solid ${P.border}` } },
+              React.createElement("div", { style: { fontSize:12, fontWeight:700, color:P.textSec, marginBottom:10, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } }, "Comparer deux joueurs"),
+              React.createElement("div", { style: { fontSize:12, color:P.textDim, marginBottom:4, fontFamily:F.mono } }, "Joueur 1"),
+              React.createElement("div", { style: { padding:"10px 12px", background:P.surfaceLight, borderRadius:8, border:`1px solid ${P.accent}33`, marginBottom:10, color:P.accent, fontFamily:F.mono, fontSize:13 } }, myProfile?.user?.displayName || myTag + " (vous)"),
+              React.createElement("div", { style: { fontSize:12, color:P.textDim, marginBottom:4, fontFamily:F.mono } }, "Joueur 2"),
+              React.createElement("div", { style: { display:"flex", gap:6, marginBottom:6 } },
+                React.createElement("input", {
+                  value:searchTag, onChange:e=>setSearchTag(e.target.value),
+                  placeholder:"Tag EVA (ex: Pseudo#123456)",
+                  style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:`1px solid ${P.border}`, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
+                  onKeyDown: e=>e.key==="Enter"&&handleSearch()
+                }),
+                React.createElement("button", { onClick:handleSearch, style: {
+                  padding:"10px 16px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
+                }}, searchLoading ? "..." : "GO")
+              ),
+              friends.length > 0 && React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap", marginTop:6 } },
+                ...friends.map((f,i) => React.createElement("button", {
+                  key:i, onClick: () => { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag).then(p=>{setSearchResult(p);setSearchLoading(false);}); },
+                  style: { padding:"5px 10px", background:P.surfaceHover, border:`1px solid ${P.border}`, borderRadius:6, color:P.textSec, fontSize:11, fontFamily:F.mono }
+                }, f.name))
+              )
+            ),
+            searchLoading && React.createElement(Spinner),
+            searchResult && myProfile && React.createElement(CompareView, { a:myProfile, b:searchResult }),
+            !searchResult && !searchLoading && searchTag.length > 0 && React.createElement(Empty, { text:"Aucun résultat" })
+          ),
+
+          tab === "info" && React.createElement(InfoView)
+        ),
+
+        // Tab bar
+        React.createElement("div", { style: {
+          position:"fixed", bottom:0, left:0, right:0,
+          background:P.surface, borderTop:`1px solid ${P.border}`,
+          display:"flex", justifyContent:"center",
+          padding:"6px 0 max(8px, env(safe-area-inset-bottom))",
+          zIndex:100
+        }},
+          React.createElement("div", { style: { display:"flex", maxWidth:480, width:"100%", justifyContent:"space-around" } },
+            ...TABS.map(t => {
+              const active = tab === t.id;
+              return React.createElement("button", {
+                key:t.id, onClick: () => { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
+                style: { background:"none", border:"none", padding:"8px 12px", display:"flex", flexDirection:"column", alignItems:"center", gap:2, opacity:active?1:0.5, transition:"all 0.2s" }
+              },
+                React.createElement("span", { style: { fontSize:18 } }, t.icon),
+                React.createElement("span", { style: { fontSize:10, fontFamily:F.mono, letterSpacing:1, color:active?P.accent:P.textDim, fontWeight:active?700:400 } }, t.label),
+                active && React.createElement("div", { style: { width:20, height:2, borderRadius:1, background:P.accent, marginTop:1, boxShadow:`0 0 6px ${P.accentGlow}` } })
+              );
+            })
+          )
+        )
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>
