@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="EVA-Companion" />
   <meta name="theme-color" content="#0a0a0f" />
-  <title>EVA</title>
+  <title>EVA-Companion</title>
 
   <!-- App Icon -->
   <link rel="apple-touch-icon" href="./logo.png" />
@@ -15,6 +15,26 @@
 
   <!-- PWA Manifest inline via data URI -->
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBLUNvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEtQ29tcGFuaW9uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGYiLCJ0aGVtZV9jb2xvciI6IiMwMGU1ZmYifQ==" />
+
+  <!-- Auto-update: register service worker + version check -->
+  <script>
+    // Register SW for PWA + auto-update
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").then(function(reg) {
+        // Check for updates every time app opens
+        reg.update();
+        // When a new SW is found, reload to get the latest version
+        reg.addEventListener("updatefound", function() {
+          var newSW = reg.installing;
+          newSW.addEventListener("statechange", function() {
+            if (newSW.state === "activated") {
+              window.location.reload();
+            }
+          });
+        });
+      }).catch(function() {});
+    }
+  </script>
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;800&display=swap" rel="stylesheet" />
