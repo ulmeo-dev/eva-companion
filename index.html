@@ -526,7 +526,7 @@
       }},
         // Logo image
         React.createElement("img", {
-          src: "icon.png",
+          src: "logo.png",
           alt: "EVA Companion",
           style: { width: 140, height: 140, objectFit: "contain", marginBottom: 16, borderRadius: 20 }
         }),
@@ -682,7 +682,7 @@
                 }}, searchLoading ? "..." : "GO")
               ),
               friends.length > 0 && React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap", marginTop:6 } },
-                ...friends.map((f,i) => React.createElement("button", {
+                ...friends.map((f,i) => React.createElement("button", 
                   key:i, onClick: () => { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag).then(p=>{setSearchResult(p);setSearchLoading(false);}); },
                   style: { padding:"5px 10px", background:P.surfaceHover, border:`1px solid ${P.border}`, borderRadius:6, color:P.textSec, fontSize:11, fontFamily:F.mono }
                 }, f.name))
