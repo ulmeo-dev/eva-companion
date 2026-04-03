@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="EVA" />
+  <meta name="apple-mobile-web-app-title" content="EVA-Companion" />
   <meta name="theme-color" content="#0a0a0f" />
-  <title>EVA Companion</title>
+  <title>EVA-Companion</title>
 
   <!-- App Icon -->
   <link rel="apple-touch-icon" href="./logo.png" />
   <link rel="icon" type="image/png" href="./logo.png" />
 
   <!-- PWA Manifest inline via data URI -->
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBIENvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBhMGEwZiIsInRoZW1lX2NvbG9yIjoiIzAwZTVmZiJ9" />
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBLUNvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEtQ29tcGFuaW9uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGYiLCJ0aGVtZV9jb2xvciI6IiMwMGU1ZmYifQ==" />
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;800&display=swap" rel="stylesheet" />
@@ -524,13 +524,28 @@
         minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center",
         justifyContent:"center", padding:32, background:P.bg
       }},
-        // Logo image
-        React.createElement("img", {
-          src: "./logo.png",
-          alt: "EVA Companion",
-          style: { width: 140, height: 140, objectFit: "contain", marginBottom: 16, borderRadius: 20 },
-          onError: function(e) { e.target.style.display = "none"; }
-        }),
+        // Logo image with glow effect
+        React.createElement("div", { style: { position:"relative", marginBottom: 16 } },
+          // Glow layer behind
+          React.createElement("div", { style: {
+            position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
+            width:160, height:160, borderRadius:"50%",
+            background:"radial-gradient(circle, rgba(0,229,255,0.15) 0%, rgba(0,229,255,0.05) 40%, transparent 70%)",
+            filter:"blur(20px)", pointerEvents:"none"
+          }}),
+          React.createElement("img", {
+            src: "./logo.png",
+            alt: "EVA Companion",
+            style: {
+              width: 140, height: 140, objectFit: "contain", borderRadius: 24,
+              position:"relative",
+              filter: "drop-shadow(0 0 20px rgba(0,229,255,0.3)) drop-shadow(0 0 40px rgba(0,229,255,0.15))",
+              maskImage: "radial-gradient(ellipse 85% 85% at center, black 55%, transparent 75%)",
+              WebkitMaskImage: "radial-gradient(ellipse 85% 85% at center, black 55%, transparent 75%)"
+            },
+            onError: function(e) { e.target.parentElement.style.display = "none"; }
+          })
+        ),
         React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap:8, marginBottom:30 } },
           React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
           React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
