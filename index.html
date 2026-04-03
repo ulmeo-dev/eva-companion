@@ -666,7 +666,7 @@
       }},
         // Header
         React.createElement("div", { style: {
-          padding:"14px 16px 10px", background:P.surface, borderBottom:`1px solid ${P.border}`,
+          padding:"max(44px, env(safe-area-inset-top)) 16px 10px", background:P.surface, borderBottom:`1px solid ${P.border}`,
           flexShrink:0
         }},
           React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
@@ -684,7 +684,7 @@
         ),
 
         // Content
-        React.createElement("div", { style: { flex:1, padding:16, paddingBottom:72, overflowY:"auto", WebkitOverflowScrolling:"touch" } },
+        React.createElement("div", { style: { flex:1, padding:16, paddingBottom:100, overflowY:"auto", WebkitOverflowScrolling:"touch" } },
 
           tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading }),
 
@@ -737,7 +737,7 @@
           position:"fixed", bottom:0, left:0, right:0,
           background:P.surface, borderTop:`1px solid ${P.border}`,
           display:"flex", justifyContent:"center",
-          padding:"6px 0 max(8px, env(safe-area-inset-bottom))",
+          padding:"4px 0 max(4px, env(safe-area-inset-bottom))",
           zIndex:100
         }},
           React.createElement("div", { style: { display:"flex", maxWidth:480, width:"100%", justifyContent:"space-around" } },
@@ -745,11 +745,11 @@
               const active = tab === t.id;
               return React.createElement("button", {
                 key:t.id, onClick: () => { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-                style: { background:"none", border:"none", padding:"8px 12px", display:"flex", flexDirection:"column", alignItems:"center", gap:2, opacity:active?1:0.5, transition:"all 0.2s" }
+                style: { background:"none", border:"none", padding:"5px 12px", display:"flex", flexDirection:"column", alignItems:"center", gap:1, opacity:active?1:0.5, transition:"all 0.2s" }
               },
-                React.createElement("span", { style: { fontSize:18 } }, t.icon),
-                React.createElement("span", { style: { fontSize:10, fontFamily:F.mono, letterSpacing:1, color:active?P.accent:P.textDim, fontWeight:active?700:400 } }, t.label),
-                active && React.createElement("div", { style: { width:20, height:2, borderRadius:1, background:P.accent, marginTop:1, boxShadow:`0 0 6px ${P.accentGlow}` } })
+                React.createElement("span", { style: { fontSize:16 } }, t.icon),
+                React.createElement("span", { style: { fontSize:9, fontFamily:F.mono, letterSpacing:1, color:active?P.accent:P.textDim, fontWeight:active?700:400 } }, t.label),
+                active && React.createElement("div", { style: { width:16, height:2, borderRadius:1, background:P.accent, marginTop:1, boxShadow:`0 0 6px ${P.accentGlow}` } })
               );
             })
           )
