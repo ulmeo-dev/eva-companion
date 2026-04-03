@@ -42,10 +42,22 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     // ═══════════════════════════════════════════════
-    //  EVA GraphQL API
+    //  EVA GraphQL API (via Cloudflare proxy)
     // ═══════════════════════════════════════════════
-    const EVA_API = "https://api.eva.gg/graphql";
+    const EVA_API = "https://green-salad-fcd5.ulmeo.workers.dev/";
     const SEASON_ID = 8;
+
+    async function evaFetch(body) {
+      const res = await fetch(EVA_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      return json;
+    }
 
     const PROFILE_QUERY = `query getPublicPlayerByUsername($username: String!, $seasonId: Int, $includeStatistics: Boolean = false) {
       getPublicPlayerByUsername(username: $username) {
@@ -102,30 +114,21 @@
     }`;
 
     async function fetchProfile(username) {
-      const res = await fetch(EVA_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operationName: "getPublicPlayerByUsername",
-          query: PROFILE_QUERY,
-          variables: { username, seasonId: SEASON_ID, includeStatistics: true },
-        }),
+      const json = await evaFetch({
+        operationName: "getPublicPlayerByUsername",
+        query: PROFILE_QUERY,
+        variables: { username, seasonId: SEASON_ID, includeStatistics: true },
       });
-      const json = await res.json();
+      if (json.errors) throw new Error(json.errors[0]?.message || "GraphQL error");
       return json.data?.getPublicPlayerByUsername || null;
     }
 
     async function fetchHistory(userId) {
-      const res = await fetch(EVA_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operationName: "useAfterhGameHistoryPageLastOnly",
-          query: HISTORY_QUERY,
-          variables: { userId, seasonId: SEASON_ID },
-        }),
+      const json = await evaFetch({
+        operationName: "useAfterhGameHistoryPageLastOnly",
+        query: HISTORY_QUERY,
+        variables: { userId, seasonId: SEASON_ID },
       });
-      const json = await res.json();
       return json.data?.listLastAfterhGameHistoriesByUserAndSeason || [];
     }
 
@@ -504,7 +507,7 @@
           const p = await fetchProfile(tag.trim());
           if (p) { saveMyTag(tag.trim()); onDone(tag.trim()); }
           else { setError("Profil non trouvé. Vérifie le tag (avec le #)."); }
-        } catch { setError("Erreur de connexion."); }
+        } catch(e) { setError("Erreur : " + e.message); }
         setLoading(false);
       };
 
