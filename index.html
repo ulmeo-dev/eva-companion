@@ -9,6 +9,10 @@
   <meta name="theme-color" content="#0a0a0f" />
   <title>EVA Companion</title>
 
+  <!-- App Icon -->
+  <link rel="apple-touch-icon" href="icon.png" />
+  <link rel="icon" type="image/png" href="icon.png" />
+
   <!-- PWA Manifest inline via data URI -->
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBIENvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBhMGEwZiIsInRoZW1lX2NvbG9yIjoiIzAwZTVmZiJ9" />
 
@@ -191,10 +195,12 @@
     function XPBar({ exp }) {
       if (!exp) return null;
       const pct = exp.levelProgressionPercentage;
+      const currentXP = exp.experience - exp.experienceForCurrentLevel;
+      const neededXP = exp.experienceForNextLevel - exp.experienceForCurrentLevel;
       return React.createElement("div", { style: { width:"100%", marginTop:8 } },
         React.createElement("div", { style: { display:"flex", justifyContent:"space-between", fontSize:11, color:P.textSec, marginBottom:3, fontFamily:F.mono } },
           React.createElement("span", null, "LVL "+exp.level),
-          React.createElement("span", null, pct.toFixed(1)+"%"),
+          React.createElement("span", null, currentXP.toLocaleString("fr-FR") + " / " + neededXP.toLocaleString("fr-FR") + " XP"),
           React.createElement("span", null, "LVL "+(exp.level+1))
         ),
         React.createElement("div", { style: { width:"100%", height:6, background:P.surfaceLight, borderRadius:3, overflow:"hidden" } },
@@ -203,6 +209,9 @@
             background: `linear-gradient(90deg, ${P.accent}, #0088a0)`,
             boxShadow: `0 0 10px ${P.accentGlow}`, transition:"width 1s ease"
           }})
+        ),
+        React.createElement("div", { style: { textAlign:"center", fontSize:10, color:P.textDim, marginTop:3, fontFamily:F.mono } },
+          pct.toFixed(1) + "% — " + exp.experience.toLocaleString("fr-FR") + " XP total"
         )
       );
     }
@@ -515,12 +524,16 @@
         minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center",
         justifyContent:"center", padding:32, background:P.bg
       }},
-        React.createElement("div", { style: {
-          fontSize:36, fontWeight:800, fontFamily:F.title, marginBottom:4,
-          background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
-        }}, "EVA"),
-        React.createElement("div", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono, marginBottom:40 } }, "companion"),
+        // Logo image
+        React.createElement("img", {
+          src: "icon.png",
+          alt: "EVA Companion",
+          style: { width: 140, height: 140, objectFit: "contain", marginBottom: 16, borderRadius: 20 }
+        }),
+        React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap:8, marginBottom:30 } },
+          React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
+          React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
+        ),
         React.createElement("div", { style: { fontSize:14, color:P.textSec, marginBottom:16, textAlign:"center" } }, "Entre ton tag EVA pour commencer"),
         React.createElement("input", {
           value:tag, onChange:e=>setTag(e.target.value),
@@ -621,13 +634,14 @@
           flexShrink:0
         }},
           React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
-            React.createElement("div", null,
+            React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap: 6 } },
               React.createElement("span", { style: {
                 fontSize:20, fontWeight:800, fontFamily:F.title,
                 background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
                 WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
               }}, "EVA"),
-              React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono, marginLeft:6 } }, "companion")
+              React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
+              React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
             ),
             React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } }, "S"+SEASON_ID)
           )
