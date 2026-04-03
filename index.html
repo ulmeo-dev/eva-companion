@@ -293,9 +293,10 @@
         return a.data.rank - b.data.rank;
       });
 
-      // MVP = highest score in the entire game
-      const mvpScore = Math.max(...game.players.map(p => p.data.score));
-      const mvpId = game.players.find(p => p.data.score === mvpScore)?.userId;
+      // MVP = player with rank 1 who has the highest score across both teams
+      const ranked1 = game.players.filter(p => p.data.rank === 1);
+      const mvpPlayer = ranked1.length > 0 ? ranked1.reduce((best, p) => p.data.score > best.data.score ? p : best, ranked1[0]) : null;
+      const mvpId = mvpPlayer ? mvpPlayer.userId : null;
 
       return React.createElement("div", {
         className: "fade-in",
@@ -444,7 +445,6 @@
         { l:"Deaths / partie", a:(sA.deaths/gcA).toFixed(1), b:(sB.deaths/gcB).toFixed(1), nA:sA.deaths/gcA, nB:sB.deaths/gcB, inv:true },
         { l:"Assists / partie", a:(sA.assists/gcA).toFixed(1), b:(sB.assists/gcB).toFixed(1), nA:sA.assists/gcA, nB:sB.assists/gcB },
         { l:"Dégâts / partie", a:Math.round(sA.inflictedDamage/gcA), b:Math.round(sB.inflictedDamage/gcB) },
-        { l:"Score / partie", a:fmtTime(Math.round(sA.gameTime/gcA)), b:fmtTime(Math.round(sB.gameTime/gcB)) },
         { l:"Distance / partie", a:fmtDist(sA.traveledDistanceAverage), b:fmtDist(sB.traveledDistanceAverage), nA:sA.traveledDistanceAverage, nB:sB.traveledDistanceAverage },
       ];
 
