@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="EVA-Companion" />
   <meta name="theme-color" content="#0a0a0f" />
-  <title>EVA-Companion</title>
+  <title>EVA</title>
 
   <!-- App Icon -->
   <link rel="apple-touch-icon" href="./logo.png" />
@@ -529,19 +529,19 @@
           // Glow layer behind
           React.createElement("div", { style: {
             position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
-            width:160, height:160, borderRadius:"50%",
-            background:"radial-gradient(circle, rgba(0,229,255,0.15) 0%, rgba(0,229,255,0.05) 40%, transparent 70%)",
-            filter:"blur(20px)", pointerEvents:"none"
+            width:180, height:180, borderRadius:"50%",
+            background:"radial-gradient(circle, rgba(0,229,255,0.2) 0%, rgba(0,229,255,0.08) 30%, transparent 60%)",
+            filter:"blur(25px)", pointerEvents:"none"
           }}),
           React.createElement("img", {
             src: "./logo.png",
             alt: "EVA Companion",
             style: {
-              width: 140, height: 140, objectFit: "contain", borderRadius: 24,
+              width: 150, height: 150, objectFit: "contain", borderRadius: 28,
               position:"relative",
-              filter: "drop-shadow(0 0 20px rgba(0,229,255,0.3)) drop-shadow(0 0 40px rgba(0,229,255,0.15))",
-              maskImage: "radial-gradient(ellipse 85% 85% at center, black 55%, transparent 75%)",
-              WebkitMaskImage: "radial-gradient(ellipse 85% 85% at center, black 55%, transparent 75%)"
+              filter: "drop-shadow(0 0 25px rgba(0,229,255,0.35)) drop-shadow(0 0 50px rgba(0,229,255,0.2))",
+              maskImage: "radial-gradient(ellipse 70% 70% at center, black 40%, transparent 65%)",
+              WebkitMaskImage: "radial-gradient(ellipse 70% 70% at center, black 40%, transparent 65%)"
             },
             onError: function(e) { e.target.parentElement.style.display = "none"; }
           })
