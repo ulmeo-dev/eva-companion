@@ -53,6 +53,30 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    /* Desktop sidebar */
+    .app-shell { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
+    .app-sidebar { display: none; }
+    .app-tabbar { display: flex; }
+
+    @media (min-width: 768px) {
+      .app-shell { max-width: 100%; margin: 0; flex-direction: row; }
+      .app-sidebar { display: flex; flex-direction: column; width: 220px; min-width: 220px;
+        background: #12121a; border-right: 1px solid #2a2a3a; padding-top: max(44px, env(safe-area-inset-top)); }
+      .app-tabbar { display: none !important; }
+      .app-header-mobile { display: none !important; }
+      .app-content { max-width: 600px; margin: 0 auto; padding-top: 16px !important; }
+    }
+
+    @media (min-width: 1200px) {
+      .app-content { max-width: 700px; }
+    }
+
+    /* Landscape mobile */
+    @media (max-width: 767px) and (orientation: landscape) {
+      .app-shell { max-width: 100%; }
+      .app-content { max-width: 600px; margin: 0 auto; }
+    }
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -289,19 +313,25 @@
         ),
         // Expanded
         open && React.createElement("div", { style: { padding:"0 10px 10px", borderTop:`1px solid ${P.border}` } },
-          React.createElement("div", { style: { display:"grid", gridTemplateColumns:"1fr 32px 32px 32px 50px 42px", gap:2, padding:"8px 4px 4px", fontSize:10, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } },
-            React.createElement("span",null,"Joueur"), React.createElement("span",null,"K"), React.createElement("span",null,"D"),
+          React.createElement("div", { style: { display:"grid", gridTemplateColumns:"1fr 38px 32px 32px 32px 50px 42px", gap:2, padding:"8px 4px 4px", fontSize:10, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } },
+            React.createElement("span",null,"Joueur"), React.createElement("span",null,"Pts"),
+            React.createElement("span",null,"K"), React.createElement("span",null,"D"),
             React.createElement("span",null,"A"), React.createElement("span",null,"Dmg"), React.createElement("span",null,"Acc")
           ),
           ...sorted.map(p => {
             const isMe = p.userId === meId;
             const pW = p.data.outcome === "Victory";
+            const teamColor = pW ? P.win : P.lose;
+            const highlightBg = isMe ? (pW ? P.winDim : P.loseDim) : "transparent";
             return React.createElement("div", { key: p.id, style: {
-              display:"grid", gridTemplateColumns:"1fr 32px 32px 32px 50px 42px",
+              display:"grid", gridTemplateColumns:"1fr 38px 32px 32px 32px 50px 42px",
               gap:2, padding:"5px 4px", fontSize:12, fontFamily:F.mono,
-              background: isMe ? P.accentDim : "transparent", borderRadius:4, color:P.text
+              background: highlightBg, borderRadius:4,
+              borderLeft: isMe ? "2px solid "+teamColor : "2px solid transparent",
+              color: P.text
             }},
-              React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isMe?P.accent:pW?P.win:P.lose, fontWeight:isMe?700:400 } }, p.data.niceName),
+              React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isMe ? teamColor : teamColor, fontWeight:isMe?700:400 } }, p.data.niceName),
+              React.createElement("span", { style: { color: P.gold } }, p.data.score),
               React.createElement("span",null,p.data.kills), React.createElement("span",null,p.data.deaths),
               React.createElement("span",null,p.data.assists), React.createElement("span",null,p.data.inflictedDamage),
               React.createElement("span",null,(p.data.firedAccuracy*100).toFixed(0)+"%")
@@ -660,31 +690,76 @@
 
       if (!myTag) return React.createElement(SetupScreen, { onDone: setMyTag });
 
-      return React.createElement("div", { style: {
-        maxWidth:480, margin:"0 auto", height:"100vh", background:P.bg, color:P.text,
-        fontFamily:F.main, display:"flex", flexDirection:"column"
+      return React.createElement("div", { className:"app-shell", style: {
+        background:P.bg, color:P.text, fontFamily:F.main
       }},
-        // Header
-        React.createElement("div", { style: {
-          padding:"max(44px, env(safe-area-inset-top)) 16px 10px", background:P.surface, borderBottom:`1px solid ${P.border}`,
-          flexShrink:0
-        }},
-          React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
-            React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap: 6 } },
+
+        // ── Desktop Sidebar ──
+        React.createElement("div", { className:"app-sidebar" },
+          // Sidebar header
+          React.createElement("div", { style: { padding:"16px 20px 20px" } },
+            React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap:6 } },
               React.createElement("span", { style: {
-                fontSize:20, fontWeight:800, fontFamily:F.title,
+                fontSize:22, fontWeight:800, fontFamily:F.title,
                 background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
                 WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
               }}, "EVA"),
-              React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
-              React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
+              React.createElement("span", { style: { fontSize:13, color:P.textDim, fontFamily:F.mono } }, "companion")
             ),
-            React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } }, "S"+SEASON_ID)
+            React.createElement("div", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5, marginTop:2 } }, "by Ulmeo • S"+SEASON_ID)
+          ),
+          // Sidebar nav items
+          React.createElement("div", { style: { flex:1, padding:"0 10px" } },
+            TABS.map(function(t) {
+              var active = tab === t.id;
+              return React.createElement("button", {
+                key:t.id,
+                onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
+                style: {
+                  display:"flex", alignItems:"center", gap:10, width:"100%",
+                  padding:"10px 14px", marginBottom:4, borderRadius:8,
+                  background: active ? P.accentDim : "transparent",
+                  border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
+                  color: active ? P.accent : P.textSec,
+                  fontFamily:F.mono, fontSize:13, fontWeight: active ? 700 : 400,
+                  transition:"all 0.2s", textAlign:"left"
+                }
+              },
+                React.createElement("span", { style: { fontSize:18 } }, t.icon),
+                React.createElement("span", null, t.label)
+              );
+            })
+          ),
+          // Sidebar footer
+          React.createElement("div", { style: { padding:"12px 20px", borderTop:"1px solid "+P.border, fontSize:10, color:P.textDim, fontFamily:F.mono } },
+            myProfile ? myProfile.user.displayName + " • LVL " + (myProfile.experience?.level || "?") : myTag
           )
         ),
 
-        // Content
-        React.createElement("div", { style: { flex:1, padding:16, paddingBottom:100, overflowY:"auto", WebkitOverflowScrolling:"touch" } },
+        // ── Main column ──
+        React.createElement("div", { style: { flex:1, display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden" } },
+
+          // Mobile header
+          React.createElement("div", { className:"app-header-mobile", style: {
+            padding:"max(44px, env(safe-area-inset-top)) 16px 10px", background:P.surface,
+            borderBottom:`1px solid ${P.border}`, flexShrink:0
+          }},
+            React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
+              React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap: 6 } },
+                React.createElement("span", { style: {
+                  fontSize:20, fontWeight:800, fontFamily:F.title,
+                  background:`linear-gradient(90deg, ${P.accent}, #0088a0)`,
+                  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
+                }}, "EVA"),
+                React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
+                React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
+              ),
+              React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } }, "S"+SEASON_ID)
+            )
+          ),
+
+          // Content
+          React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:100, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
 
           tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading }),
 
@@ -732,15 +807,15 @@
           tab === "info" && React.createElement(InfoView)
         ),
 
-        // Tab bar
-        React.createElement("div", { style: {
+        // Mobile Tab bar
+        React.createElement("div", { className:"app-tabbar", style: {
           position:"fixed", bottom:0, left:0, right:0,
           background:P.surface, borderTop:`1px solid ${P.border}`,
-          display:"flex", justifyContent:"center",
+          justifyContent:"center",
           padding:"4px 0 max(4px, env(safe-area-inset-bottom))",
           zIndex:100
         }},
-          React.createElement("div", { style: { display:"flex", maxWidth:480, width:"100%", justifyContent:"space-around" } },
+          React.createElement("div", { style: { display:"flex", maxWidth:480, width:"100%", justifyContent:"space-around", margin:"0 auto" } },
             ...TABS.map(t => {
               const active = tab === t.id;
               return React.createElement("button", {
@@ -754,7 +829,9 @@
             })
           )
         )
-      );
+
+        ), // close main column
+      ); // close app-shell
     }
 
     ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
