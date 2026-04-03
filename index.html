@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -10,13 +11,16 @@
   <title>EVA-Companion</title>
 
   <!-- App Icon -->
+
   <link rel="apple-touch-icon" href="./logo.png" />
   <link rel="icon" type="image/png" href="./logo.png" />
 
   <!-- PWA Manifest inline via data URI -->
+
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBLUNvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEtQ29tcGFuaW9uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGYiLCJ0aGVtZV9jb2xvciI6IiMwMGU1ZmYifQ==" />
 
   <!-- Auto-update: register service worker + version check -->
+
   <script>
     // Register SW for PWA + auto-update
     if ("serviceWorker" in navigator) {
@@ -37,6 +41,7 @@
   </script>
 
   <!-- Fonts -->
+
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;800&display=swap" rel="stylesheet" />
 
   <style>
@@ -80,8 +85,11 @@
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
 </head>
 <body>
   <div id="root"></div>
@@ -285,6 +293,10 @@
         return a.data.rank - b.data.rank;
       });
 
+      // MVP = highest score in the entire game
+      const mvpScore = Math.max(...game.players.map(p => p.data.score));
+      const mvpId = game.players.find(p => p.data.score === mvpScore)?.userId;
+
       return React.createElement("div", {
         className: "fade-in",
         style: { background:P.surface, borderRadius:10, marginBottom:8, border:`1px solid ${bc}33`, overflow:"hidden" },
@@ -302,7 +314,8 @@
               React.createElement("span", { style: { fontSize:14, fontWeight:700, color:P.text, fontFamily:F.main } }, game.map.name),
               React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, fmtDT(game.createdAt))
             ),
-            me && React.createElement("div", { style: { display:"flex", gap:12, marginTop:3, fontSize:12 } },
+            me && React.createElement("div", { style: { display:"flex", gap:12, marginTop:3, fontSize:12, alignItems:"center" } },
+              me.userId === mvpId && React.createElement("span", { style: { fontSize:13 }, title:"MVP" }, "👑"),
               React.createElement("span", { style: { color:P.textSec } }, isFFA ? "FFA" : game.data.teamOne.score+" - "+game.data.teamTwo.score),
               React.createElement("span", { style: { color:P.accent, fontFamily:F.mono, fontWeight:600 } }, me.data.kills+"/"+me.data.deaths+"/"+me.data.assists),
               React.createElement("span", { style: { color:P.textDim } }, me.data.inflictedDamage+" dmg"),
@@ -321,6 +334,7 @@
           ...sorted.map(p => {
             const isMe = p.userId === meId;
             const pW = p.data.outcome === "Victory";
+            const isMvp = p.userId === mvpId;
             const teamColor = pW ? P.win : P.lose;
             const highlightBg = isMe ? (pW ? P.winDim : P.loseDim) : "transparent";
             return React.createElement("div", { key: p.id, style: {
@@ -330,7 +344,10 @@
               borderLeft: isMe ? "2px solid "+teamColor : "2px solid transparent",
               color: P.text
             }},
-              React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isMe ? teamColor : teamColor, fontWeight:isMe?700:400 } }, p.data.niceName),
+              React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isMe ? teamColor : teamColor, fontWeight:isMe?700:400, display:"flex", alignItems:"center", gap:3 } },
+                isMvp && React.createElement("span", { style: { fontSize:13, flexShrink:0 }, title:"MVP" }, "👑"),
+                React.createElement("span", { style: { overflow:"hidden", textOverflow:"ellipsis" } }, p.data.niceName)
+              ),
               React.createElement("span", { style: { color: P.gold } }, p.data.score),
               React.createElement("span",null,p.data.kills), React.createElement("span",null,p.data.deaths),
               React.createElement("span",null,p.data.assists), React.createElement("span",null,p.data.inflictedDamage),
@@ -408,7 +425,7 @@
       const sA = a.statistics?.data, sB = b.statistics?.data;
       if (!sA || !sB) return React.createElement(Empty, { text:"Stats indisponibles" });
 
-      const rows = [
+      const generalRows = [
         { l:"Niveau", a:a.experience?.level, b:b.experience?.level },
         { l:"Parties", a:sA.gameCount, b:sB.gameCount },
         { l:"Win Rate", a:wr(sA.gameVictoryCount,sA.gameCount)+"%", b:wr(sB.gameVictoryCount,sB.gameCount)+"%", nA:+wr(sA.gameVictoryCount,sA.gameCount), nB:+wr(sB.gameVictoryCount,sB.gameCount) },
@@ -421,10 +438,47 @@
         { l:"Dégâts totaux", a:Math.round(sA.inflictedDamage/1000)+"k", b:Math.round(sB.inflictedDamage/1000)+"k", nA:sA.inflictedDamage, nB:sB.inflictedDamage },
       ];
 
+      var gcA = sA.gameCount || 1, gcB = sB.gameCount || 1;
+      const avgRows = [
+        { l:"Kills / partie", a:(sA.kills/gcA).toFixed(1), b:(sB.kills/gcB).toFixed(1), nA:sA.kills/gcA, nB:sB.kills/gcB },
+        { l:"Deaths / partie", a:(sA.deaths/gcA).toFixed(1), b:(sB.deaths/gcB).toFixed(1), nA:sA.deaths/gcA, nB:sB.deaths/gcB, inv:true },
+        { l:"Assists / partie", a:(sA.assists/gcA).toFixed(1), b:(sB.assists/gcB).toFixed(1), nA:sA.assists/gcA, nB:sB.assists/gcB },
+        { l:"Dégâts / partie", a:Math.round(sA.inflictedDamage/gcA), b:Math.round(sB.inflictedDamage/gcB) },
+        { l:"Score / partie", a:fmtTime(Math.round(sA.gameTime/gcA)), b:fmtTime(Math.round(sB.gameTime/gcB)) },
+        { l:"Distance / partie", a:fmtDist(sA.traveledDistanceAverage), b:fmtDist(sB.traveledDistanceAverage), nA:sA.traveledDistanceAverage, nB:sB.traveledDistanceAverage },
+      ];
+
+      function renderRows(rows, startIdx) {
+        return rows.map(function(r,i) {
+          var idx = startIdx + i;
+          var nA = r.nA ?? (typeof r.a==="number"?r.a:0);
+          var nB = r.nB ?? (typeof r.b==="number"?r.b:0);
+          var aW = r.inv ? nA<nB : nA>nB;
+          var bW = r.inv ? nB<nA : nB>nA;
+          return React.createElement("div", { key:idx, style: {
+            display:"grid", gridTemplateColumns:"1fr auto 1fr",
+            padding:"8px 14px", borderBottom:"1px solid "+P.border,
+            background: idx%2===0 ? P.surface : "transparent"
+          }},
+            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:aW?P.win:P.text } }, r.a),
+            React.createElement("div", { style: { fontSize:11, color:P.textSec, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, padding:"0 12px", display:"flex", alignItems:"center" } }, r.l),
+            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:bW?P.win:P.text } }, r.b)
+          );
+        });
+      }
+
+      function sectionHeader(title) {
+        return React.createElement("div", { style: {
+          padding:"10px 14px 6px", fontSize:11, fontWeight:700, color:P.accent,
+          fontFamily:F.mono, textTransform:"uppercase", letterSpacing:2,
+          borderBottom:"1px solid "+P.border, background:P.surface
+        }}, title);
+      }
+
       return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
         React.createElement("div", { style: {
           display:"grid", gridTemplateColumns:"1fr auto 1fr", gap:0, marginBottom:16,
-          background:P.surface, borderRadius:12, overflow:"hidden", border:`1px solid ${P.border}`
+          background:P.surface, borderRadius:12, overflow:"hidden", border:"1px solid "+P.border
         }},
           React.createElement("div", { style: { padding:16, textAlign:"center" } },
             React.createElement("div", { style: { fontSize:18, fontWeight:700, color:P.accent, fontFamily:F.main } }, a.user.displayName),
@@ -436,21 +490,10 @@
             React.createElement("div", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, "LVL "+b.experience?.level)
           )
         ),
-        ...rows.map((r,i) => {
-          const nA = r.nA ?? (typeof r.a==="number"?r.a:0);
-          const nB = r.nB ?? (typeof r.b==="number"?r.b:0);
-          const aW = r.inv ? nA<nB : nA>nB;
-          const bW = r.inv ? nB<nA : nB>nA;
-          return React.createElement("div", { key:i, style: {
-            display:"grid", gridTemplateColumns:"1fr auto 1fr",
-            padding:"8px 14px", borderBottom:`1px solid ${P.border}`,
-            background: i%2===0 ? P.surface : "transparent"
-          }},
-            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:aW?P.win:P.text } }, r.a),
-            React.createElement("div", { style: { fontSize:11, color:P.textSec, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, padding:"0 12px", display:"flex", alignItems:"center" } }, r.l),
-            React.createElement("div", { style: { fontSize:16, fontWeight:700, fontFamily:F.mono, textAlign:"center", color:bW?P.win:P.text } }, r.b)
-          );
-        })
+        sectionHeader("Générales"),
+        renderRows(generalRows, 0),
+        sectionHeader("Moyennes par partie"),
+        renderRows(avgRows, 100)
       );
     }
 
@@ -647,6 +690,9 @@
       const [searchTag, setSearchTag] = useState("");
       const [searchResult, setSearchResult] = useState(null);
       const [searchLoading, setSearchLoading] = useState(false);
+      const [searchTagA, setSearchTagA] = useState("");
+      const [compareA, setCompareA] = useState(null);
+      const [compareALoading, setCompareALoading] = useState(false);
 
       // Load my profile when tag is set
       useEffect(() => {
@@ -778,30 +824,68 @@
           tab === "compare" && React.createElement("div", null,
             React.createElement("div", { style: { background:P.surface, borderRadius:12, padding:16, marginBottom:16, border:`1px solid ${P.border}` } },
               React.createElement("div", { style: { fontSize:12, fontWeight:700, color:P.textSec, marginBottom:10, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } }, "Comparer deux joueurs"),
+
+              // Player 1
               React.createElement("div", { style: { fontSize:12, color:P.textDim, marginBottom:4, fontFamily:F.mono } }, "Joueur 1"),
-              React.createElement("div", { style: { padding:"10px 12px", background:P.surfaceLight, borderRadius:8, border:`1px solid ${P.accent}33`, marginBottom:10, color:P.accent, fontFamily:F.mono, fontSize:13 } }, myProfile?.user?.displayName || myTag + " (vous)"),
-              React.createElement("div", { style: { fontSize:12, color:P.textDim, marginBottom:4, fontFamily:F.mono } }, "Joueur 2"),
-              React.createElement("div", { style: { display:"flex", gap:6, marginBottom:6 } },
+              React.createElement("div", { style: { display:"flex", gap:6, marginBottom:4 } },
                 React.createElement("input", {
-                  value:searchTag, onChange:e=>setSearchTag(e.target.value),
+                  value:searchTagA, onChange:function(e){setSearchTagA(e.target.value);},
                   placeholder:"Tag EVA (ex: Pseudo#123456)",
-                  style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:`1px solid ${P.border}`, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
-                  onKeyDown: e=>e.key==="Enter"&&handleSearch()
+                  style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:"1px solid "+P.border, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
+                  onKeyDown: function(e){ if(e.key==="Enter"){ setCompareALoading(true); fetchProfile(searchTagA.trim()).then(function(p){setCompareA(p);setCompareALoading(false);}); } }
+                }),
+                React.createElement("button", { onClick:function(){ setCompareALoading(true); fetchProfile(searchTagA.trim()).then(function(p){setCompareA(p);setCompareALoading(false);}); }, style: {
+                  padding:"10px 14px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
+                }}, compareALoading ? "..." : "GO")
+              ),
+              // Quick pick Player 1
+              React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 } },
+                React.createElement("button", {
+                  onClick: function(){ setSearchTagA(myTag); setCompareA(myProfile); },
+                  style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
+                }, "Moi"),
+                friends.map(function(f,i) { return React.createElement("button", {
+                  key:"a"+i, onClick: function() { setSearchTagA(f.tag); setCompareALoading(true); fetchProfile(f.tag).then(function(p){setCompareA(p);setCompareALoading(false);}); },
+                  style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
+                }, f.name); })
+              ),
+              compareA && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginBottom:12, color:P.accent, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
+                React.createElement("span", null, "✓"),
+                React.createElement("span", null, compareA.user.displayName + " (LVL " + (compareA.experience?.level||"?") + ")")
+              ),
+
+              // Player 2
+              React.createElement("div", { style: { fontSize:12, color:P.textDim, marginBottom:4, fontFamily:F.mono } }, "Joueur 2"),
+              React.createElement("div", { style: { display:"flex", gap:6, marginBottom:4 } },
+                React.createElement("input", {
+                  value:searchTag, onChange:function(e){setSearchTag(e.target.value);},
+                  placeholder:"Tag EVA (ex: Pseudo#123456)",
+                  style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:"1px solid "+P.border, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
+                  onKeyDown: function(e){ if(e.key==="Enter") handleSearch(); }
                 }),
                 React.createElement("button", { onClick:handleSearch, style: {
-                  padding:"10px 16px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
+                  padding:"10px 14px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
                 }}, searchLoading ? "..." : "GO")
               ),
-              friends.length > 0 && React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap", marginTop:6 } },
+              // Quick pick Player 2
+              React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap" } },
+                React.createElement("button", {
+                  onClick: function(){ setSearchTag(myTag); setSearchResult(myProfile); },
+                  style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
+                }, "Moi"),
                 friends.map(function(f,i) { return React.createElement("button", {
-                  key:i, onClick: function() { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag).then(function(p){setSearchResult(p);setSearchLoading(false);}); },
-                  style: { padding:"5px 10px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:11, fontFamily:F.mono }
+                  key:"b"+i, onClick: function() { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag).then(function(p){setSearchResult(p);setSearchLoading(false);}); },
+                  style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
                 }, f.name); })
+              ),
+              searchResult && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginTop:6, color:P.lose, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
+                React.createElement("span", null, "✓"),
+                React.createElement("span", null, searchResult.user.displayName + " (LVL " + (searchResult.experience?.level||"?") + ")")
               )
             ),
-            searchLoading && React.createElement(Spinner),
-            searchResult && myProfile && React.createElement(CompareView, { a:myProfile, b:searchResult }),
-            !searchResult && !searchLoading && searchTag.length > 0 && React.createElement(Empty, { text:"Aucun résultat" })
+            (compareALoading || searchLoading) && React.createElement(Spinner),
+            compareA && searchResult && React.createElement(CompareView, { a:compareA, b:searchResult }),
+            (!compareA || !searchResult) && !compareALoading && !searchLoading && React.createElement(Empty, { text:"Sélectionnez les deux joueurs ci-dessus" })
           ),
 
           tab === "info" && React.createElement(InfoView)
@@ -836,5 +920,6 @@
 
     ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
   </script>
+
 </body>
 </html>
