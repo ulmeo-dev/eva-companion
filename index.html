@@ -119,8 +119,17 @@
     }
 
     function seasonLabel(s) {
-      if (s.name) return "S" + s.seasonNumber + " " + s.name.charAt(0).toUpperCase() + s.name.slice(1);
-      return "Saison " + s.seasonNumber;
+      if (!s) return "";
+      var num = "Saison " + s.seasonNumber;
+      if (s.name && s.name.length > 0) num = "S" + s.seasonNumber + " " + s.name.charAt(0).toUpperCase() + s.name.slice(1);
+      if (s.active) num += " (active)";
+      return num;
+    }
+
+    function seasonShort(s) {
+      if (!s) return "";
+      if (s.name && s.name.length > 0) return "S" + s.seasonNumber + " " + s.name.charAt(0).toUpperCase() + s.name.slice(1);
+      return "S" + s.seasonNumber;
     }
 
     const PROFILE_QUERY = `query getPublicPlayerByUsername($username: String!, $seasonId: Int, $includeStatistics: Boolean = false) {
@@ -236,25 +245,29 @@
     function SeasonSelector({ seasons, selectedId, onChange }) {
       if (!seasons || seasons.length === 0) return null;
       return React.createElement("div", { style: {
-        display:"flex", gap:6, flexWrap:"wrap", marginBottom:14, alignItems:"center"
+        display:"flex", gap:8, marginBottom:14, alignItems:"center"
       }},
-        React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, marginRight:4 } }, "Saison"),
-        seasons.slice().reverse().map(function(s) {
-          var active = s.id === selectedId;
-          return React.createElement("button", {
-            key: s.id,
-            onClick: function() { onChange(s.id); },
-            style: {
-              padding:"4px 10px", borderRadius:6, fontSize:11, fontFamily:F.mono, fontWeight:active?700:400,
-              background: active ? (s.active ? P.accentDim : P.surfaceHover) : "transparent",
-              border: active ? "1px solid "+(s.active ? P.accent+"55" : P.border) : "1px solid "+P.border,
-              color: active ? (s.active ? P.accent : P.text) : P.textDim,
-              transition:"all 0.2s"
-            }
-          },
-            s.active ? "S"+s.seasonNumber+" ●" : "S"+s.seasonNumber + (s.name ? " "+s.name.charAt(0).toUpperCase()+s.name.slice(1) : "")
-          );
-        })
+        React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, flexShrink:0 } }, "Saison"),
+        React.createElement("select", {
+          value: selectedId || "",
+          onChange: function(e) { onChange(parseInt(e.target.value)); },
+          style: {
+            padding:"6px 12px", borderRadius:8, fontSize:13, fontFamily:F.mono, fontWeight:600,
+            background:P.surfaceLight, border:"1px solid "+P.border, color:P.accent,
+            appearance:"none", WebkitAppearance:"none", MozAppearance:"none",
+            backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300e5ff' d='M2 4l4 4 4-4'/%3E%3C/svg%3E\")",
+            backgroundRepeat:"no-repeat", backgroundPosition:"right 10px center",
+            paddingRight:30, minWidth:160, cursor:"pointer"
+          }
+        },
+          seasons.slice().reverse().map(function(s) {
+            return React.createElement("option", {
+              key: s.id,
+              value: s.id,
+              style: { background:P.surface, color:P.text }
+            }, seasonLabel(s));
+          })
+        )
       );
     }
 
@@ -405,6 +418,7 @@
       const s = data.statistics?.data;
       const exp = data.experience;
       const u = data.user;
+      const hasStats = s && s.gameCount > 0;
 
       return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
         // Header card
@@ -435,7 +449,7 @@
         ),
 
         // Stats
-        s && React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 } },
+        hasStats && React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 } },
           React.createElement(StatCard, { label:"Parties", value:s.gameCount, sub:fmtTime(s.gameTime)+" de jeu" }),
           React.createElement(StatCard, { label:"Win Rate", value:wr(s.gameVictoryCount,s.gameCount)+"%", color:P.win, sub:s.gameVictoryCount+"V / "+s.gameDefeatCount+"D" }),
           React.createElement(StatCard, { label:"K/D", value:s.killsByDeaths.toFixed(2), color:s.killsByDeaths>=1.5?P.win:s.killsByDeaths>=1?P.gold:P.lose, sub:s.kills+"K / "+s.deaths+"D / "+s.assists+"A" }),
@@ -445,6 +459,8 @@
           React.createElement(StatCard, { label:"Dégâts totaux", value:(s.inflictedDamage/1000).toFixed(1)+"k" }),
           React.createElement(StatCard, { label:"Distance", value:fmtDist(s.traveledDistance), sub:fmtDist(s.traveledDistanceAverage)+" /partie" })
         ),
+
+        !hasStats && React.createElement(Empty, { text:"Aucune donnée pour cette saison" }),
 
         // History
         history && history.length > 0 && React.createElement("div", null,
@@ -457,7 +473,9 @@
     function CompareView({ a, b }) {
       if (!a || !b) return React.createElement(Empty, { text:"Sélectionnez deux profils" });
       const sA = a.statistics?.data, sB = b.statistics?.data;
-      if (!sA || !sB) return React.createElement(Empty, { text:"Stats indisponibles" });
+      if (!sA && !sB) return React.createElement(Empty, { text:"Aucune donnée pour cette saison pour les deux joueurs" });
+      if (!sA) return React.createElement(Empty, { text: a.user.displayName + " n'a pas de données sur cette saison" });
+      if (!sB) return React.createElement(Empty, { text: b.user.displayName + " n'a pas de données sur cette saison" });
 
       const generalRows = [
         { l:"Niveau", a:a.experience?.level, b:b.experience?.level },
@@ -753,13 +771,27 @@
         })();
       }, [myTag, seasonId]);
 
-      // Reset compare/friend data when season changes
+      // Reset friend view and refresh compare data when season changes
       useEffect(() => {
-        setSearchResult(null);
-        setCompareA(null);
         setFriendProfile(null);
         setFriendHistory([]);
         if (subTab === "profile") setSubTab("list");
+
+        // Re-fetch compare profiles with new season if they were selected
+        if (compareA && searchTagA && seasonId) {
+          setCompareALoading(true);
+          fetchProfile(searchTagA.trim(), seasonId).then(function(p) {
+            setCompareA(p);
+            setCompareALoading(false);
+          }).catch(function() { setCompareALoading(false); });
+        }
+        if (searchResult && searchTag && seasonId) {
+          setSearchLoading(true);
+          fetchProfile(searchTag.trim(), seasonId).then(function(p) {
+            setSearchResult(p);
+            setSearchLoading(false);
+          }).catch(function() { setSearchLoading(false); });
+        }
       }, [seasonId]);
 
       const loadFriend = useCallback(async (f) => {
@@ -807,7 +839,7 @@
               React.createElement("span", { style: { fontSize:13, color:P.textDim, fontFamily:F.mono } }, "companion")
             ),
             React.createElement("div", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5, marginTop:2 } },
-              "by Ulmeo" + (seasonId && seasons.length ? " • " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? seasonLabel(s) : ""; })() : "")
+              "by Ulmeo" + (seasonId && seasons.length ? " • " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? seasonShort(s) : ""; })() : "")
             )
           ),
           // Sidebar nav items
