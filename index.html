@@ -414,7 +414,7 @@
 
     function ProfileView({ data, history, loading }) {
       if (loading) return React.createElement(Spinner);
-      if (!data) return React.createElement(Empty, { text: "Profil non trouvé ou privé" });
+      if (!data || !data.user) return React.createElement(Empty, { text: "Profil non trouvé ou privé" });
       const s = data.statistics?.data;
       const exp = data.experience;
       const u = data.user;
@@ -441,7 +441,7 @@
               React.createElement("div", { style: { fontSize:12, color:P.textSec, fontFamily:F.mono } }, u.username),
               React.createElement("div", { style: { display:"flex", alignItems:"center", gap:8, marginTop:4 } },
                 data.seasonPass?.active && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.goldDim, color:P.gold, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SEASON PASS"),
-                React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.accentDim, color:P.accent, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SAISON "+exp?.seasonId)
+                exp && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.accentDim, color:P.accent, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SAISON "+exp.seasonId)
               )
             )
           ),
@@ -760,15 +760,44 @@
       // Load my profile when tag or season changes
       useEffect(() => {
         if (!myTag || !seasonId) return;
+        var cancelled = false;
         (async () => {
           setLoading(true);
           try {
             const p = await fetchProfile(myTag, seasonId);
-            setMyProfile(p);
-            if (p?.user?.id) { const h = await fetchHistory(p.user.id, seasonId); setMyHistory(h); }
-          } catch(e) { console.error(e); }
-          setLoading(false);
+            if (cancelled) return;
+            if (p) {
+              setMyProfile(p);
+              if (p.user?.id) {
+                try {
+                  const h = await fetchHistory(p.user.id, seasonId);
+                  if (!cancelled) setMyHistory(h || []);
+                } catch(e) {
+                  if (!cancelled) setMyHistory([]);
+                }
+              } else {
+                setMyHistory([]);
+              }
+            } else {
+              // Profile not found — keep previous profile base data but clear stats
+              setMyProfile(function(prev) {
+                if (!prev) return null;
+                return Object.assign({}, prev, { statistics: null, experience: null });
+              });
+              setMyHistory([]);
+            }
+          } catch(e) {
+            console.error(e);
+            // On error, keep previous profile but clear season-specific data
+            setMyProfile(function(prev) {
+              if (!prev) return null;
+              return Object.assign({}, prev, { statistics: null, experience: null });
+            });
+            setMyHistory([]);
+          }
+          if (!cancelled) setLoading(false);
         })();
+        return function() { cancelled = true; };
       }, [myTag, seasonId]);
 
       // Reset friend view and refresh compare data when season changes
@@ -778,17 +807,19 @@
         if (subTab === "profile") setSubTab("list");
 
         // Re-fetch compare profiles with new season if they were selected
-        if (compareA && searchTagA && seasonId) {
+        if (searchTagA && seasonId) {
           setCompareALoading(true);
           fetchProfile(searchTagA.trim(), seasonId).then(function(p) {
-            setCompareA(p);
+            if (p) setCompareA(p);
+            else setCompareA(function(prev) { return prev ? Object.assign({}, prev, { statistics: null, experience: null }) : null; });
             setCompareALoading(false);
           }).catch(function() { setCompareALoading(false); });
         }
-        if (searchResult && searchTag && seasonId) {
+        if (searchTag && seasonId) {
           setSearchLoading(true);
           fetchProfile(searchTag.trim(), seasonId).then(function(p) {
-            setSearchResult(p);
+            if (p) setSearchResult(p);
+            else setSearchResult(function(prev) { return prev ? Object.assign({}, prev, { statistics: null, experience: null }) : null; });
             setSearchLoading(false);
           }).catch(function() { setSearchLoading(false); });
         }
