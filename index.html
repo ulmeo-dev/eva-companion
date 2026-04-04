@@ -112,27 +112,25 @@
         body: JSON.stringify(body),
       }).then(function(res) {
         if (res.status === 429) {
-          // Rate limited: wait longer and retry (max 3 attempts)
           if (attempt < 3) {
-            var wait = 1000 * (attempt + 1);
+            var wait = 2000 * (attempt + 1); // 2s, 4s, 6s
             setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, wait);
             return;
           }
           reject(new Error("RATE_LIMITED"));
           _processing = false;
-          _processQueue();
+          setTimeout(_processQueue, 1000);
           return;
         }
-        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; _processQueue(); return; }
+        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; setTimeout(_processQueue, 400); return; }
         res.json().then(function(json) {
           if (json.error) { reject(new Error(json.error)); } else { resolve(json); }
-          // Wait 200ms before next request
-          setTimeout(function() { _processing = false; _processQueue(); }, 200);
+          setTimeout(function() { _processing = false; _processQueue(); }, 400);
         });
       }).catch(function(e) {
         reject(e);
         _processing = false;
-        _processQueue();
+        setTimeout(_processQueue, 400);
       });
     }
 
@@ -143,7 +141,6 @@
       });
     }
 
-    // Clear pending queue (used when season changes to cancel stale requests)
     function clearFetchQueue() {
       _queue.forEach(function(item) { item.reject(new Error("CANCELLED")); });
       _queue = [];
@@ -802,14 +799,17 @@
         return s ? s.seasonNumber : sid;
       }, [seasons]);
 
-      // Helper: safe profile fetch that never returns broken state
+      // Helper: safe profile fetch
+      // Returns: profile object, null (not found), or throws "RATE_LIMITED"/"CANCELLED"
       const safeFetchProfile = useCallback(async function(tag, sid) {
         if (!tag || !sid) return null;
         try {
           var p = await fetchProfile(tag, sid);
           return p && p.user ? p : null;
         } catch(e) {
-          if (e.message !== "CANCELLED") console.error("fetchProfile error for " + tag, e);
+          // Rate limit and cancel errors should bubble up so callers can preserve old data
+          if (e.message === "RATE_LIMITED" || e.message === "CANCELLED") throw e;
+          console.error("fetchProfile error for " + tag, e);
           return null;
         }
       }, []);
@@ -847,70 +847,66 @@
         // Cancel any pending API calls from previous season
         if (isSeasonChange) clearFetchQueue();
 
-        // Sequential loading: my profile first, then friend/compare only if season changed
         setLoading(true);
 
+        // Load my profile (always)
         safeFetchProfile(myTag, seasonId).then(function(p) {
           if (cancelled) return;
           if (p) { myProfileRef.current = p; setMyProfile(p); }
           else if (myProfileRef.current) {
-            var fallback = Object.assign({}, myProfileRef.current, { statistics: null, experience: null });
-            setMyProfile(fallback);
+            setMyProfile(Object.assign({}, myProfileRef.current, { statistics: null, experience: null }));
           }
           return (p && p.user) ? safeFetchHistory(p.user.id, seasonId) : [];
         }).then(function(h) {
-          if (cancelled) return;
-          setMyHistory(h || []);
-          setLoading(false);
-
-          // Now sequentially reload friend if viewing one
-          if (isSeasonChange && friendTag && subTab === "profile") {
-            setFriendLoading(true);
-            return safeFetchProfile(friendTag, seasonId).then(function(fp) {
-              if (cancelled) return;
-              if (fp) setFriendProfile(fp);
-              else setFriendProfile(function(prev) {
-                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-              });
-              return (fp && fp.user) ? safeFetchHistory(fp.user.id, seasonId) : [];
-            }).then(function(fh) {
-              if (cancelled) return;
-              setFriendHistory(fh || []);
-            }).finally(function() {
-              if (!cancelled) setFriendLoading(false);
-            });
-          }
-        }).then(function() {
-          if (cancelled || !isSeasonChange) return;
-
-          // Reload compare A if selected
-          if (searchTagA) {
-            setCompareALoading(true);
-            return safeFetchProfile(searchTagA, seasonId).then(function(p) {
-              if (cancelled) return;
-              if (p) setCompareA(p);
-              else setCompareA(function(prev) {
-                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-              });
-            }).finally(function() { if (!cancelled) setCompareALoading(false); });
-          }
-        }).then(function() {
-          if (cancelled || !isSeasonChange) return;
-
-          // Reload compare B if selected
-          if (searchTag) {
-            setSearchLoading(true);
-            return safeFetchProfile(searchTag, seasonId).then(function(p) {
-              if (cancelled) return;
-              if (p) setSearchResult(p);
-              else setSearchResult(function(prev) {
-                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-              });
-            }).finally(function() { if (!cancelled) setSearchLoading(false); });
-          }
+          if (!cancelled) { setMyHistory(h || []); setLoading(false); }
         }).catch(function(e) {
-          console.error("Season load error", e);
+          // On rate limit, keep existing profile data
           if (!cancelled) setLoading(false);
+        }).then(function() {
+          // Then load friend if viewing one and season changed
+          if (cancelled || !isSeasonChange || !friendTag || subTab !== "profile") return;
+          setFriendLoading(true);
+          return safeFetchProfile(friendTag, seasonId).then(function(fp) {
+            if (cancelled) return;
+            if (fp) setFriendProfile(fp);
+            // If null (no data this season), keep user info but clear stats
+            else setFriendProfile(function(prev) {
+              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+            });
+            return (fp && fp.user) ? safeFetchHistory(fp.user.id, seasonId) : [];
+          }).then(function(fh) {
+            if (!cancelled) setFriendHistory(fh || []);
+          }).catch(function() {
+            // Rate limited: keep existing friend data
+          }).finally(function() {
+            if (!cancelled) setFriendLoading(false);
+          });
+        }).then(function() {
+          // Then compare A
+          if (cancelled || !isSeasonChange || !searchTagA) return;
+          setCompareALoading(true);
+          return safeFetchProfile(searchTagA, seasonId).then(function(p) {
+            if (cancelled) return;
+            if (p) setCompareA(p);
+            else setCompareA(function(prev) {
+              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+            });
+          }).catch(function() {}).finally(function() {
+            if (!cancelled) setCompareALoading(false);
+          });
+        }).then(function() {
+          // Then compare B
+          if (cancelled || !isSeasonChange || !searchTag) return;
+          setSearchLoading(true);
+          return safeFetchProfile(searchTag, seasonId).then(function(p) {
+            if (cancelled) return;
+            if (p) setSearchResult(p);
+            else setSearchResult(function(prev) {
+              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+            });
+          }).catch(function() {}).finally(function() {
+            if (!cancelled) setSearchLoading(false);
+          });
         });
 
         return function() { cancelled = true; };
