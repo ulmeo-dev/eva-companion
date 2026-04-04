@@ -207,7 +207,7 @@ function App() {
               background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
               transition:"all 0.2s", flexShrink:1 }
           },
-            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxHeight:"calc((100vh - 140px) / 4)", objectFit:"contain",
+            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxHeight:"calc((100vh - 140px) / 8)", objectFit:"contain",
               filter: active ? "drop-shadow(0 0 6px rgba(0,229,255,0.3))" : "grayscale(0.5) opacity(0.5)",
               transition:"all 0.2s" } })
           );
