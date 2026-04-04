@@ -94,16 +94,26 @@
     // ═══════════════════════════════════════════════
     const EVA_API = "https://green-salad-fcd5.ulmeo.workers.dev/";
 
-    async function evaFetch(body) {
-      const res = await fetch(EVA_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(body),
+    // Rate-limited fetch queue to avoid 429
+    var fetchQueue = Promise.resolve();
+    function evaFetch(body) {
+      fetchQueue = fetchQueue.then(function() {
+        return new Promise(function(resolve) { setTimeout(resolve, 150); });
+      }).then(function() {
+        return fetch(EVA_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(body),
+        }).then(function(res) {
+          if (res.status === 429) throw new Error("RATE_LIMITED");
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        }).then(function(json) {
+          if (json.error) throw new Error(json.error);
+          return json;
+        });
       });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      return json;
+      return fetchQueue;
     }
 
     const SEASONS_QUERY = `query listSeasons {
@@ -451,14 +461,14 @@
 
         // Stats
         hasStats && React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 } },
-          React.createElement(StatCard, { label:"Parties", value:s.gameCount, sub:fmtTime(s.gameTime)+" de jeu" }),
-          React.createElement(StatCard, { label:"Win Rate", value:wr(s.gameVictoryCount,s.gameCount)+"%", color:P.win, sub:s.gameVictoryCount+"V / "+s.gameDefeatCount+"D" }),
-          React.createElement(StatCard, { label:"K/D", value:s.killsByDeaths.toFixed(2), color:s.killsByDeaths>=1.5?P.win:s.killsByDeaths>=1?P.gold:P.lose, sub:s.kills+"K / "+s.deaths+"D / "+s.assists+"A" }),
-          React.createElement(StatCard, { label:"Précision", value:(s.killDeathRatio*100).toFixed(1)+"%" }),
-          React.createElement(StatCard, { label:"Best Streak", value:s.bestKillStreak, color:P.gold, sub:"kills consécutifs" }),
-          React.createElement(StatCard, { label:"Best Dégâts", value:s.bestInflictedDamage, color:P.accent, sub:"en une partie" }),
-          React.createElement(StatCard, { label:"Dégâts totaux", value:(s.inflictedDamage/1000).toFixed(1)+"k" }),
-          React.createElement(StatCard, { label:"Distance", value:fmtDist(s.traveledDistance), sub:fmtDist(s.traveledDistanceAverage)+" /partie" })
+          React.createElement(StatCard, { label:"Parties", value:s.gameCount||0, sub:fmtTime(s.gameTime||0)+" de jeu" }),
+          React.createElement(StatCard, { label:"Win Rate", value:wr(s.gameVictoryCount||0,s.gameCount||0)+"%", color:P.win, sub:(s.gameVictoryCount||0)+"V / "+(s.gameDefeatCount||0)+"D" }),
+          React.createElement(StatCard, { label:"K/D", value:s.killsByDeaths!=null?s.killsByDeaths.toFixed(2):"0", color:(s.killsByDeaths||0)>=1.5?P.win:(s.killsByDeaths||0)>=1?P.gold:P.lose, sub:(s.kills||0)+"K / "+(s.deaths||0)+"D / "+(s.assists||0)+"A" }),
+          React.createElement(StatCard, { label:"Précision", value:s.killDeathRatio!=null?((s.killDeathRatio*100).toFixed(1)+"%"):"0%" }),
+          React.createElement(StatCard, { label:"Best Streak", value:s.bestKillStreak||0, color:P.gold, sub:"kills consécutifs" }),
+          React.createElement(StatCard, { label:"Best Dégâts", value:s.bestInflictedDamage||0, color:P.accent, sub:"en une partie" }),
+          React.createElement(StatCard, { label:"Dégâts totaux", value:((s.inflictedDamage||0)/1000).toFixed(1)+"k" }),
+          React.createElement(StatCard, { label:"Distance", value:fmtDist(s.traveledDistance||0), sub:fmtDist(s.traveledDistanceAverage||0)+" /partie" })
         ),
 
         !hasStats && React.createElement(Empty, { text:"Aucune donnée pour cette saison" }),
@@ -475,29 +485,33 @@
       if (!a || !b) return React.createElement(Empty, { text:"Sélectionnez deux profils" });
       const sA = a.statistics?.data, sB = b.statistics?.data;
       if (!sA && !sB) return React.createElement(Empty, { text:"Aucune donnée pour cette saison pour les deux joueurs" });
-      if (!sA) return React.createElement(Empty, { text: a.user.displayName + " n'a pas de données sur cette saison" });
-      if (!sB) return React.createElement(Empty, { text: b.user.displayName + " n'a pas de données sur cette saison" });
+      if (!sA) return React.createElement(Empty, { text: (a.user?.displayName||"Joueur 1") + " n'a pas de données sur cette saison" });
+      if (!sB) return React.createElement(Empty, { text: (b.user?.displayName||"Joueur 2") + " n'a pas de données sur cette saison" });
+
+      // Null-safe number
+      function n(v) { return v == null ? 0 : v; }
+      function nf(v, d) { return v == null ? "0" : v.toFixed(d); }
 
       const generalRows = [
-        { l:"Niveau", a:a.experience?.level, b:b.experience?.level },
-        { l:"Parties", a:sA.gameCount, b:sB.gameCount },
-        { l:"Win Rate", a:wr(sA.gameVictoryCount,sA.gameCount)+"%", b:wr(sB.gameVictoryCount,sB.gameCount)+"%", nA:+wr(sA.gameVictoryCount,sA.gameCount), nB:+wr(sB.gameVictoryCount,sB.gameCount) },
-        { l:"K/D", a:sA.killsByDeaths.toFixed(2), b:sB.killsByDeaths.toFixed(2), nA:sA.killsByDeaths, nB:sB.killsByDeaths },
-        { l:"Kills", a:sA.kills, b:sB.kills },
-        { l:"Deaths", a:sA.deaths, b:sB.deaths, inv:true },
-        { l:"Assists", a:sA.assists, b:sB.assists },
-        { l:"Best Streak", a:sA.bestKillStreak, b:sB.bestKillStreak },
-        { l:"Best Dégâts", a:sA.bestInflictedDamage, b:sB.bestInflictedDamage },
-        { l:"Dégâts totaux", a:Math.round(sA.inflictedDamage/1000)+"k", b:Math.round(sB.inflictedDamage/1000)+"k", nA:sA.inflictedDamage, nB:sB.inflictedDamage },
+        { l:"Niveau", a:a.experience?.level || 0, b:b.experience?.level || 0 },
+        { l:"Parties", a:n(sA.gameCount), b:n(sB.gameCount) },
+        { l:"Win Rate", a:wr(n(sA.gameVictoryCount),n(sA.gameCount))+"%", b:wr(n(sB.gameVictoryCount),n(sB.gameCount))+"%", nA:+wr(n(sA.gameVictoryCount),n(sA.gameCount)), nB:+wr(n(sB.gameVictoryCount),n(sB.gameCount)) },
+        { l:"K/D", a:nf(sA.killsByDeaths,2), b:nf(sB.killsByDeaths,2), nA:n(sA.killsByDeaths), nB:n(sB.killsByDeaths) },
+        { l:"Kills", a:n(sA.kills), b:n(sB.kills) },
+        { l:"Deaths", a:n(sA.deaths), b:n(sB.deaths), inv:true },
+        { l:"Assists", a:n(sA.assists), b:n(sB.assists) },
+        { l:"Best Streak", a:n(sA.bestKillStreak), b:n(sB.bestKillStreak) },
+        { l:"Best Dégâts", a:n(sA.bestInflictedDamage), b:n(sB.bestInflictedDamage) },
+        { l:"Dégâts totaux", a:Math.round(n(sA.inflictedDamage)/1000)+"k", b:Math.round(n(sB.inflictedDamage)/1000)+"k", nA:n(sA.inflictedDamage), nB:n(sB.inflictedDamage) },
       ];
 
-      var gcA = sA.gameCount || 1, gcB = sB.gameCount || 1;
+      var gcA = n(sA.gameCount) || 1, gcB = n(sB.gameCount) || 1;
       const avgRows = [
-        { l:"Kills / partie", a:(sA.kills/gcA).toFixed(1), b:(sB.kills/gcB).toFixed(1), nA:sA.kills/gcA, nB:sB.kills/gcB },
-        { l:"Deaths / partie", a:(sA.deaths/gcA).toFixed(1), b:(sB.deaths/gcB).toFixed(1), nA:sA.deaths/gcA, nB:sB.deaths/gcB, inv:true },
-        { l:"Assists / partie", a:(sA.assists/gcA).toFixed(1), b:(sB.assists/gcB).toFixed(1), nA:sA.assists/gcA, nB:sB.assists/gcB },
-        { l:"Dégâts / partie", a:Math.round(sA.inflictedDamage/gcA), b:Math.round(sB.inflictedDamage/gcB) },
-        { l:"Distance / partie", a:fmtDist(sA.traveledDistanceAverage), b:fmtDist(sB.traveledDistanceAverage), nA:sA.traveledDistanceAverage, nB:sB.traveledDistanceAverage },
+        { l:"Kills / partie", a:(n(sA.kills)/gcA).toFixed(1), b:(n(sB.kills)/gcB).toFixed(1), nA:n(sA.kills)/gcA, nB:n(sB.kills)/gcB },
+        { l:"Deaths / partie", a:(n(sA.deaths)/gcA).toFixed(1), b:(n(sB.deaths)/gcB).toFixed(1), nA:n(sA.deaths)/gcA, nB:n(sB.deaths)/gcB, inv:true },
+        { l:"Assists / partie", a:(n(sA.assists)/gcA).toFixed(1), b:(n(sB.assists)/gcB).toFixed(1), nA:n(sA.assists)/gcA, nB:n(sB.assists)/gcB },
+        { l:"Dégâts / partie", a:Math.round(n(sA.inflictedDamage)/gcA), b:Math.round(n(sB.inflictedDamage)/gcB) },
+        { l:"Distance / partie", a:fmtDist(n(sA.traveledDistanceAverage)), b:fmtDist(n(sB.traveledDistanceAverage)), nA:n(sA.traveledDistanceAverage), nB:n(sB.traveledDistanceAverage) },
       ];
 
       function renderRows(rows, startIdx) {
@@ -789,74 +803,82 @@
 
       // Load my profile when tag or season changes
       const myProfileRef = useRef(null);
+      const prevSeasonRef = useRef(null);
+
       useEffect(function() {
         if (!myTag || !seasonId) return;
         var cancelled = false;
+        var isSeasonChange = prevSeasonRef.current !== null && prevSeasonRef.current !== seasonId;
+        prevSeasonRef.current = seasonId;
+
+        // Sequential loading: my profile first, then friend/compare only if season changed
         setLoading(true);
+
         safeFetchProfile(myTag, seasonId).then(function(p) {
           if (cancelled) return;
-          if (p) {
-            myProfileRef.current = p;
-            setMyProfile(p);
-          } else if (myProfileRef.current) {
-            // Keep base profile, clear season data
-            setMyProfile(Object.assign({}, myProfileRef.current, { statistics: null, experience: null }));
+          if (p) { myProfileRef.current = p; setMyProfile(p); }
+          else if (myProfileRef.current) {
+            var fallback = Object.assign({}, myProfileRef.current, { statistics: null, experience: null });
+            setMyProfile(fallback);
           }
-          return p && p.user ? safeFetchHistory(p.user.id, seasonId) : [];
+          return (p && p.user) ? safeFetchHistory(p.user.id, seasonId) : [];
         }).then(function(h) {
-          if (!cancelled) setMyHistory(h || []);
-        }).finally(function() {
+          if (cancelled) return;
+          setMyHistory(h || []);
+          setLoading(false);
+
+          // Now sequentially reload friend if viewing one
+          if (isSeasonChange && friendTag && subTab === "profile") {
+            setFriendLoading(true);
+            return safeFetchProfile(friendTag, seasonId).then(function(fp) {
+              if (cancelled) return;
+              if (fp) setFriendProfile(fp);
+              else setFriendProfile(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+              });
+              return (fp && fp.user) ? safeFetchHistory(fp.user.id, seasonId) : [];
+            }).then(function(fh) {
+              if (cancelled) return;
+              setFriendHistory(fh || []);
+            }).finally(function() {
+              if (!cancelled) setFriendLoading(false);
+            });
+          }
+        }).then(function() {
+          if (cancelled || !isSeasonChange) return;
+
+          // Reload compare A if selected
+          if (searchTagA) {
+            setCompareALoading(true);
+            return safeFetchProfile(searchTagA, seasonId).then(function(p) {
+              if (cancelled) return;
+              if (p) setCompareA(p);
+              else setCompareA(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+              });
+            }).finally(function() { if (!cancelled) setCompareALoading(false); });
+          }
+        }).then(function() {
+          if (cancelled || !isSeasonChange) return;
+
+          // Reload compare B if selected
+          if (searchTag) {
+            setSearchLoading(true);
+            return safeFetchProfile(searchTag, seasonId).then(function(p) {
+              if (cancelled) return;
+              if (p) setSearchResult(p);
+              else setSearchResult(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+              });
+            }).finally(function() { if (!cancelled) setSearchLoading(false); });
+          }
+        }).catch(function(e) {
+          console.error("Season load error", e);
           if (!cancelled) setLoading(false);
         });
+
         return function() { cancelled = true; };
       }, [myTag, seasonId]);
-
-      // Reload friend profile when season changes (keep friend open)
-      useEffect(function() {
-        if (!friendTag || !seasonId || subTab !== "profile") return;
-        var cancelled = false;
-        setFriendLoading(true);
-        safeFetchProfile(friendTag, seasonId).then(function(p) {
-          if (cancelled) return;
-          if (p) setFriendProfile(p);
-          else setFriendProfile(function(prev) {
-            return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-          });
-          return p && p.user ? safeFetchHistory(p.user.id, seasonId) : [];
-        }).then(function(h) {
-          if (!cancelled) setFriendHistory(h || []);
-        }).finally(function() {
-          if (!cancelled) setFriendLoading(false);
-        });
-        return function() { cancelled = true; };
-      }, [seasonId, friendTag, subTab]);
-
-      // Reload compare profiles when season changes
-      useEffect(function() {
-        if (!seasonId) return;
-        var cancelled = false;
-        if (searchTagA) {
-          setCompareALoading(true);
-          safeFetchProfile(searchTagA, seasonId).then(function(p) {
-            if (cancelled) return;
-            if (p) setCompareA(p);
-            else setCompareA(function(prev) {
-              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-            });
-          }).finally(function() { if (!cancelled) setCompareALoading(false); });
-        }
-        if (searchTag) {
-          setSearchLoading(true);
-          safeFetchProfile(searchTag, seasonId).then(function(p) {
-            if (cancelled) return;
-            if (p) setSearchResult(p);
-            else setSearchResult(function(prev) {
-              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
-            });
-          }).finally(function() { if (!cancelled) setSearchLoading(false); });
-        }
-        return function() { cancelled = true; };
-      }, [seasonId]);
 
       // Load friend profile on click
       const loadFriend = useCallback(function(f) {
