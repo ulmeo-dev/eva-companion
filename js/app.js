@@ -198,16 +198,16 @@ function App() {
           "by Ulmeo" + (seasonId && seasons.length ? " \u2022 " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? EVA.seasonShort(s) : ""; })() : "")
         )
       ),
-      React.createElement("div", { style: { flex:1, padding:"0 6px" } },
+      React.createElement("div", { style: { flex:1, padding:"0 6px", display:"flex", flexDirection:"column", justifyContent:"center", gap:2, overflow:"hidden" } },
         TABS.map(function(t) {
           var active = tab === t.id;
           return React.createElement("button", {
             key:t.id, onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"6px", marginBottom:2, borderRadius:8,
+            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"4px 6px", borderRadius:8,
               background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
-              transition:"all 0.2s" }
+              transition:"all 0.2s", flexShrink:1 }
           },
-            React.createElement("img", { src:t.menuImg, style: { width:"100%", height:"auto", objectFit:"contain",
+            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxHeight:"calc((100vh - 140px) / 4)", objectFit:"contain",
               filter: active ? "drop-shadow(0 0 6px rgba(0,229,255,0.3))" : "grayscale(0.5) opacity(0.5)",
               transition:"all 0.2s" } })
           );
