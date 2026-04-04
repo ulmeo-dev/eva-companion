@@ -112,40 +112,38 @@
         body: JSON.stringify(body),
       }).then(function(res) {
         if (res.status === 429) {
-          // HTTP-level rate limit
           if (attempt < 3) {
-            setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 2000 * (attempt + 1));
+            setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 3000 * (attempt + 1));
             return;
           }
           reject(new Error("RATE_LIMITED"));
           _processing = false;
-          setTimeout(_processQueue, 2000);
+          setTimeout(_processQueue, 5000);
           return;
         }
-        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; setTimeout(_processQueue, 300); return; }
+        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; setTimeout(_processQueue, 500); return; }
         res.json().then(function(json) {
-          // Check for GraphQL-level rate limit (HTTP 200 but errors in body)
           if (json.errors && json.errors[0]) {
             var code = json.errors[0].extensions && json.errors[0].extensions.code;
             if (code === "TOO_MANY_REQUESTS") {
               if (attempt < 3) {
-                setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 2000 * (attempt + 1));
+                setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 3000 * (attempt + 1));
                 return;
               }
               reject(new Error("RATE_LIMITED"));
               _processing = false;
-              setTimeout(_processQueue, 2000);
+              setTimeout(_processQueue, 5000);
               return;
             }
           }
           if (json.error) { reject(new Error(json.error)); }
           else { resolve(json); }
-          setTimeout(function() { _processing = false; _processQueue(); }, 300);
+          setTimeout(function() { _processing = false; _processQueue(); }, 500);
         });
       }).catch(function(e) {
         reject(e);
         _processing = false;
-        setTimeout(_processQueue, 300);
+        setTimeout(_processQueue, 500);
       });
     }
 
@@ -270,7 +268,8 @@
     function cacheKey(type, id, sid) { return type + ":" + String(id).toLowerCase() + ":" + sid; }
 
     function isSeasonCacheable(sid) {
-      return sid !== _activeSeasonId;
+      // Only cache if we know the active season AND this isn't it
+      return _activeSeasonId !== null && sid !== _activeSeasonId;
     }
 
     // Cached fetch - returns from cache immediately (sync) if available
