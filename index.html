@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -11,16 +10,13 @@
   <title>EVA-Companion</title>
 
   <!-- App Icon -->
-
   <link rel="apple-touch-icon" href="./logo.png" />
   <link rel="icon" type="image/png" href="./logo.png" />
 
   <!-- PWA Manifest inline via data URI -->
-
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRVZBLUNvbXBhbmlvbiIsInNob3J0X25hbWUiOiJFVkEtQ29tcGFuaW9uIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGYiLCJ0aGVtZV9jb2xvciI6IiMwMGU1ZmYifQ==" />
 
   <!-- Auto-update: register service worker + version check -->
-
   <script>
     // Register SW for PWA + auto-update
     if ("serviceWorker" in navigator) {
@@ -41,7 +37,6 @@
   </script>
 
   <!-- Fonts -->
-
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@700;800&display=swap" rel="stylesheet" />
 
   <style>
@@ -85,11 +80,8 @@
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-
 </head>
 <body>
   <div id="root"></div>
@@ -98,9 +90,9 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     // ═══════════════════════════════════════════════
-    //  EVA GraphQL API (via Cloudflare proxy)
+    //  EVA GraphQL API (direct)
     // ═══════════════════════════════════════════════
-    const EVA_API = "https://green-salad-fcd5.ulmeo.workers.dev/";
+    const EVA_API = "https://api.eva.gg/graphql";
     const SEASON_ID = 8;
 
     async function evaFetch(body) {
@@ -111,7 +103,7 @@
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      if (json.errors) throw new Error(json.errors[0]?.message || "GraphQL error");
       return json;
     }
 
@@ -920,6 +912,5 @@
 
     ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
   </script>
-
 </body>
 </html>
