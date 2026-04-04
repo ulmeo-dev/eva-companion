@@ -94,26 +94,59 @@
     // ═══════════════════════════════════════════════
     const EVA_API = "https://green-salad-fcd5.ulmeo.workers.dev/";
 
-    // Rate-limited fetch queue to avoid 429
-    var fetchQueue = Promise.resolve();
-    function evaFetch(body) {
-      fetchQueue = fetchQueue.then(function() {
-        return new Promise(function(resolve) { setTimeout(resolve, 150); });
-      }).then(function() {
-        return fetch(EVA_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify(body),
-        }).then(function(res) {
-          if (res.status === 429) throw new Error("RATE_LIMITED");
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          return res.json();
-        }).then(function(json) {
-          if (json.error) throw new Error(json.error);
-          return json;
+    // Sequential fetch queue with retry on rate limit
+    var _queue = [];
+    var _processing = false;
+
+    function _processQueue() {
+      if (_processing || _queue.length === 0) return;
+      _processing = true;
+      var item = _queue.shift();
+      _doFetch(item.body, item.resolve, item.reject, 0);
+    }
+
+    function _doFetch(body, resolve, reject, attempt) {
+      fetch(EVA_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(body),
+      }).then(function(res) {
+        if (res.status === 429) {
+          // Rate limited: wait longer and retry (max 3 attempts)
+          if (attempt < 3) {
+            var wait = 1000 * (attempt + 1);
+            setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, wait);
+            return;
+          }
+          reject(new Error("RATE_LIMITED"));
+          _processing = false;
+          _processQueue();
+          return;
+        }
+        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; _processQueue(); return; }
+        res.json().then(function(json) {
+          if (json.error) { reject(new Error(json.error)); } else { resolve(json); }
+          // Wait 200ms before next request
+          setTimeout(function() { _processing = false; _processQueue(); }, 200);
         });
+      }).catch(function(e) {
+        reject(e);
+        _processing = false;
+        _processQueue();
       });
-      return fetchQueue;
+    }
+
+    function evaFetch(body) {
+      return new Promise(function(resolve, reject) {
+        _queue.push({ body: body, resolve: resolve, reject: reject });
+        _processQueue();
+      });
+    }
+
+    // Clear pending queue (used when season changes to cancel stale requests)
+    function clearFetchQueue() {
+      _queue.forEach(function(item) { item.reject(new Error("CANCELLED")); });
+      _queue = [];
     }
 
     const SEASONS_QUERY = `query listSeasons {
@@ -776,7 +809,7 @@
           var p = await fetchProfile(tag, sid);
           return p && p.user ? p : null;
         } catch(e) {
-          console.error("fetchProfile error for " + tag, e);
+          if (e.message !== "CANCELLED") console.error("fetchProfile error for " + tag, e);
           return null;
         }
       }, []);
@@ -810,6 +843,9 @@
         var cancelled = false;
         var isSeasonChange = prevSeasonRef.current !== null && prevSeasonRef.current !== seasonId;
         prevSeasonRef.current = seasonId;
+
+        // Cancel any pending API calls from previous season
+        if (isSeasonChange) clearFetchQueue();
 
         // Sequential loading: my profile first, then friend/compare only if season changed
         setLoading(true);
@@ -882,6 +918,7 @@
 
       // Load friend profile on click
       const loadFriend = useCallback(function(f) {
+        if (friendTag === f.tag && friendProfile) return; // Already loaded
         setFriendTag(f.tag);
         setSubTab("profile");
         setFriendLoading(true);
@@ -895,7 +932,7 @@
         }).finally(function() {
           setFriendLoading(false);
         });
-      }, [seasonId]);
+      }, [seasonId, friendTag, friendProfile]);
 
       const addFriend = useCallback(function(f) {
         var u = friends.concat([f]); setFriends(u); saveFriends(u);
