@@ -198,7 +198,7 @@ function App() {
           "by Ulmeo" + (seasonId && seasons.length ? " \u2022 " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? EVA.seasonShort(s) : ""; })() : "")
         )
       ),
-      React.createElement("div", { style: { flex:1, padding:"0 6px", display:"flex", flexDirection:"column", justifyContent:"center", gap:2, overflow:"hidden" } },
+      React.createElement("div", { style: { flex:1, padding:"6px 6px 0", display:"flex", flexDirection:"column", justifyContent:"flex-start", gap:2, overflow:"hidden" } },
         TABS.map(function(t) {
           var active = tab === t.id;
           return React.createElement("button", {
@@ -239,7 +239,7 @@ function App() {
       ),
 
       // Content
-      React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:100, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
+      React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:140, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
 
         tab !== "look4pvp" && seasons.length > 0 && React.createElement(EVA.SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
 

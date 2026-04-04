@@ -217,7 +217,6 @@ EVA.SeasonSelector = function(props) {
   var P = EVA.P, F = EVA.F;
   if (!seasons || seasons.length === 0) return null;
   return React.createElement("div", { style: { display:"flex", gap:8, marginBottom:14, alignItems:"center" } },
-    React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, flexShrink:0 } }, "Saison"),
     React.createElement("select", {
       value: selectedId || "",
       onChange: function(e) { onChange(parseInt(e.target.value)); },
