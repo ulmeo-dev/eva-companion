@@ -203,13 +203,13 @@ function App() {
           var active = tab === t.id;
           return React.createElement("button", {
             key:t.id, onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-            style: { display:"flex", alignItems:"center", gap:10, width:"100%", padding:"10px 14px", marginBottom:4, borderRadius:8,
+            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"8px 10px", marginBottom:4, borderRadius:8,
               background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
-              color: active ? P.accent : P.textSec, fontFamily:F.mono, fontSize:13, fontWeight: active ? 700 : 400, transition:"all 0.2s", textAlign:"left" }
+              transition:"all 0.2s" }
           },
-            React.createElement("img", { src:t.menuImg, style: { width:24, height:24, objectFit:"contain", filter: active ? "none" : "grayscale(0.5) opacity(0.6)",
-              maskImage:"radial-gradient(ellipse 80% 80% at center, black 50%, transparent 80%)", WebkitMaskImage:"radial-gradient(ellipse 80% 80% at center, black 50%, transparent 80%)" } }),
-            React.createElement("span", null, t.label)
+            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxWidth:160, height:36, objectFit:"contain",
+              filter: active ? "drop-shadow(0 0 6px rgba(0,229,255,0.3))" : "grayscale(0.5) opacity(0.5)",
+              transition:"all 0.2s" } })
           );
         })
       ),
@@ -337,10 +337,8 @@ function App() {
             },
               React.createElement("img", {
                 src:t.listImg,
-                style: { width:28, height:28, objectFit:"contain",
+                style: { width:32, height:32, objectFit:"contain",
                   filter: active ? "drop-shadow(0 0 4px rgba(0,229,255,0.4))" : "grayscale(0.5) opacity(0.5)",
-                  maskImage:"radial-gradient(ellipse 75% 75% at center, black 45%, transparent 70%)",
-                  WebkitMaskImage:"radial-gradient(ellipse 75% 75% at center, black 45%, transparent 70%)",
                   transition:"all 0.2s" }
               }),
               active && React.createElement("div", { style: { width:16, height:2, borderRadius:1, background:P.accent, marginTop:2, boxShadow:"0 0 6px "+P.accentGlow } })
