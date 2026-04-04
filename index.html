@@ -412,13 +412,14 @@
       );
     }
 
-    function ProfileView({ data, history, loading }) {
+    function ProfileView({ data, history, loading, seasons, currentSeasonId }) {
       if (loading) return React.createElement(Spinner);
       if (!data || !data.user) return React.createElement(Empty, { text: "Profil non trouvé ou privé" });
       const s = data.statistics?.data;
       const exp = data.experience;
       const u = data.user;
       const hasStats = s && s.gameCount > 0;
+      const curSeason = seasons ? seasons.find(function(x) { return x.id === currentSeasonId; }) : null;
 
       return React.createElement("div", { className:"fade-in", style: { paddingBottom:20 } },
         // Header card
@@ -441,7 +442,7 @@
               React.createElement("div", { style: { fontSize:12, color:P.textSec, fontFamily:F.mono } }, u.username),
               React.createElement("div", { style: { display:"flex", alignItems:"center", gap:8, marginTop:4 } },
                 data.seasonPass?.active && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.goldDim, color:P.gold, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SEASON PASS"),
-                exp && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.accentDim, color:P.accent, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, "SAISON "+exp.seasonId)
+                curSeason && React.createElement("span", { style: { fontSize:10, padding:"2px 8px", borderRadius:4, background:P.accentDim, color:P.accent, fontWeight:700, letterSpacing:1, fontFamily:F.mono } }, seasonShort(curSeason))
               )
             )
           ),
@@ -734,6 +735,7 @@
       const [myHistory, setMyHistory] = useState([]);
       const [loading, setLoading] = useState(false);
       const [friends, setFriends] = useState(loadFriends);
+      const [friendTag, setFriendTag] = useState(null);
       const [friendProfile, setFriendProfile] = useState(null);
       const [friendHistory, setFriendHistory] = useState([]);
       const [friendLoading, setFriendLoading] = useState(false);
@@ -747,8 +749,36 @@
       const [seasons, setSeasons] = useState([]);
       const [seasonId, setSeasonId] = useState(null);
 
+      // Helper: get season number from id
+      const getSeasonNumber = useCallback(function(sid) {
+        var s = seasons.find(function(x) { return x.id === sid; });
+        return s ? s.seasonNumber : sid;
+      }, [seasons]);
+
+      // Helper: safe profile fetch that never returns broken state
+      const safeFetchProfile = useCallback(async function(tag, sid) {
+        if (!tag || !sid) return null;
+        try {
+          var p = await fetchProfile(tag, sid);
+          return p && p.user ? p : null;
+        } catch(e) {
+          console.error("fetchProfile error for " + tag, e);
+          return null;
+        }
+      }, []);
+
+      const safeFetchHistory = useCallback(async function(userId, sid) {
+        if (!userId || !sid) return [];
+        try {
+          var h = await fetchHistory(userId, sid);
+          return h || [];
+        } catch(e) {
+          return [];
+        }
+      }, []);
+
       // Load seasons on mount
-      useEffect(() => {
+      useEffect(function() {
         fetchSeasons().then(function(list) {
           setSeasons(list);
           var active = list.find(function(s) { return s.active; });
@@ -758,98 +788,121 @@
       }, []);
 
       // Load my profile when tag or season changes
-      useEffect(() => {
+      const myProfileRef = useRef(null);
+      useEffect(function() {
         if (!myTag || !seasonId) return;
         var cancelled = false;
-        (async () => {
-          setLoading(true);
-          try {
-            const p = await fetchProfile(myTag, seasonId);
-            if (cancelled) return;
-            if (p) {
-              setMyProfile(p);
-              if (p.user?.id) {
-                try {
-                  const h = await fetchHistory(p.user.id, seasonId);
-                  if (!cancelled) setMyHistory(h || []);
-                } catch(e) {
-                  if (!cancelled) setMyHistory([]);
-                }
-              } else {
-                setMyHistory([]);
-              }
-            } else {
-              // Profile not found — keep previous profile base data but clear stats
-              setMyProfile(function(prev) {
-                if (!prev) return null;
-                return Object.assign({}, prev, { statistics: null, experience: null });
-              });
-              setMyHistory([]);
-            }
-          } catch(e) {
-            console.error(e);
-            // On error, keep previous profile but clear season-specific data
-            setMyProfile(function(prev) {
-              if (!prev) return null;
-              return Object.assign({}, prev, { statistics: null, experience: null });
-            });
-            setMyHistory([]);
+        setLoading(true);
+        safeFetchProfile(myTag, seasonId).then(function(p) {
+          if (cancelled) return;
+          if (p) {
+            myProfileRef.current = p;
+            setMyProfile(p);
+          } else if (myProfileRef.current) {
+            // Keep base profile, clear season data
+            setMyProfile(Object.assign({}, myProfileRef.current, { statistics: null, experience: null }));
           }
+          return p && p.user ? safeFetchHistory(p.user.id, seasonId) : [];
+        }).then(function(h) {
+          if (!cancelled) setMyHistory(h || []);
+        }).finally(function() {
           if (!cancelled) setLoading(false);
-        })();
+        });
         return function() { cancelled = true; };
       }, [myTag, seasonId]);
 
-      // Reset friend view and refresh compare data when season changes
-      useEffect(() => {
+      // Reload friend profile when season changes (keep friend open)
+      useEffect(function() {
+        if (!friendTag || !seasonId || subTab !== "profile") return;
+        var cancelled = false;
+        setFriendLoading(true);
+        safeFetchProfile(friendTag, seasonId).then(function(p) {
+          if (cancelled) return;
+          if (p) setFriendProfile(p);
+          else setFriendProfile(function(prev) {
+            return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+          });
+          return p && p.user ? safeFetchHistory(p.user.id, seasonId) : [];
+        }).then(function(h) {
+          if (!cancelled) setFriendHistory(h || []);
+        }).finally(function() {
+          if (!cancelled) setFriendLoading(false);
+        });
+        return function() { cancelled = true; };
+      }, [seasonId, friendTag, subTab]);
+
+      // Reload compare profiles when season changes
+      useEffect(function() {
+        if (!seasonId) return;
+        var cancelled = false;
+        if (searchTagA) {
+          setCompareALoading(true);
+          safeFetchProfile(searchTagA, seasonId).then(function(p) {
+            if (cancelled) return;
+            if (p) setCompareA(p);
+            else setCompareA(function(prev) {
+              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+            });
+          }).finally(function() { if (!cancelled) setCompareALoading(false); });
+        }
+        if (searchTag) {
+          setSearchLoading(true);
+          safeFetchProfile(searchTag, seasonId).then(function(p) {
+            if (cancelled) return;
+            if (p) setSearchResult(p);
+            else setSearchResult(function(prev) {
+              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : null;
+            });
+          }).finally(function() { if (!cancelled) setSearchLoading(false); });
+        }
+        return function() { cancelled = true; };
+      }, [seasonId]);
+
+      // Load friend profile on click
+      const loadFriend = useCallback(function(f) {
+        setFriendTag(f.tag);
+        setSubTab("profile");
+        setFriendLoading(true);
         setFriendProfile(null);
         setFriendHistory([]);
-        if (subTab === "profile") setSubTab("list");
-
-        // Re-fetch compare profiles with new season if they were selected
-        if (searchTagA && seasonId) {
-          setCompareALoading(true);
-          fetchProfile(searchTagA.trim(), seasonId).then(function(p) {
-            if (p) setCompareA(p);
-            else setCompareA(function(prev) { return prev ? Object.assign({}, prev, { statistics: null, experience: null }) : null; });
-            setCompareALoading(false);
-          }).catch(function() { setCompareALoading(false); });
-        }
-        if (searchTag && seasonId) {
-          setSearchLoading(true);
-          fetchProfile(searchTag.trim(), seasonId).then(function(p) {
-            if (p) setSearchResult(p);
-            else setSearchResult(function(prev) { return prev ? Object.assign({}, prev, { statistics: null, experience: null }) : null; });
-            setSearchLoading(false);
-          }).catch(function() { setSearchLoading(false); });
-        }
-      }, [seasonId]);
-
-      const loadFriend = useCallback(async (f) => {
-        setSubTab("profile"); setFriendLoading(true); setFriendProfile(null); setFriendHistory([]);
-        try {
-          const p = await fetchProfile(f.tag, seasonId);
+        safeFetchProfile(f.tag, seasonId).then(function(p) {
           setFriendProfile(p);
-          if (p?.user?.id) { const h = await fetchHistory(p.user.id, seasonId); setFriendHistory(h); }
-        } catch(e) { console.error(e); }
-        setFriendLoading(false);
+          return p && p.user ? safeFetchHistory(p.user.id, seasonId) : [];
+        }).then(function(h) {
+          setFriendHistory(h || []);
+        }).finally(function() {
+          setFriendLoading(false);
+        });
       }, [seasonId]);
 
-      const addFriend = useCallback(f => {
-        const u = [...friends, f]; setFriends(u); saveFriends(u);
+      const addFriend = useCallback(function(f) {
+        var u = friends.concat([f]); setFriends(u); saveFriends(u);
       }, [friends]);
 
-      const removeFriend = useCallback(i => {
-        const u = friends.filter((_,j)=>j!==i); setFriends(u); saveFriends(u);
+      const removeFriend = useCallback(function(i) {
+        var u = friends.filter(function(_,j){return j!==i;}); setFriends(u); saveFriends(u);
       }, [friends]);
 
-      const handleSearch = async () => {
-        if (!searchTag.trim()) return;
-        setSearchLoading(true); setSearchResult(null);
-        try { setSearchResult(await fetchProfile(searchTag.trim(), seasonId)); }
-        catch(e) { console.error(e); }
-        setSearchLoading(false);
-      };
+      // Compare search handler with validation
+      const doCompareSearch = useCallback(function(tag, setter, loadingSetter) {
+        var t = (tag || "").trim();
+        if (!t || !seasonId) return;
+        if (!t.includes("#")) { return; }
+        loadingSetter(true);
+        safeFetchProfile(t, seasonId).then(function(p) {
+          setter(p);
+        }).finally(function() {
+          loadingSetter(false);
+        });
+      }, [seasonId]);
+
+      const handleSearchA = useCallback(function() {
+        doCompareSearch(searchTagA, setCompareA, setCompareALoading);
+      }, [searchTagA, doCompareSearch]);
+
+      const handleSearchB = useCallback(function() {
+        doCompareSearch(searchTag, setSearchResult, setSearchLoading);
+      }, [searchTag, doCompareSearch]);
 
       if (!myTag) return React.createElement(SetupScreen, { onDone: setMyTag });
 
@@ -931,22 +984,22 @@
           // Season selector (shown on all tabs except info)
           tab !== "info" && seasons.length > 0 && React.createElement(SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
 
-          tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading }),
+          tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading:loading, seasons:seasons, currentSeasonId:seasonId }),
 
           tab === "friends" && (
-            subTab === "profile" && friendProfile
+            subTab === "profile"
               ? React.createElement("div", null,
                   React.createElement("button", {
-                    onClick: () => { setSubTab("list"); setFriendProfile(null); },
+                    onClick: function() { setSubTab("list"); setFriendTag(null); setFriendProfile(null); setFriendHistory([]); },
                     style: { background:"none", border:"none", color:P.accent, fontFamily:F.mono, fontSize:13, padding:"4px 0", marginBottom:12, display:"flex", alignItems:"center", gap:4 }
                   }, "← Retour"),
-                  React.createElement(ProfileView, { data:friendProfile, history:friendHistory, loading:friendLoading })
+                  React.createElement(ProfileView, { data:friendProfile, history:friendHistory, loading:friendLoading, seasons:seasons, currentSeasonId:seasonId })
                 )
-              : React.createElement(FriendsView, { friends, onSelect:loadFriend, onRemove:removeFriend, onAdd:addFriend })
+              : React.createElement(FriendsView, { friends:friends, onSelect:loadFriend, onRemove:removeFriend, onAdd:addFriend })
           ),
 
           tab === "compare" && React.createElement("div", null,
-            React.createElement("div", { style: { background:P.surface, borderRadius:12, padding:16, marginBottom:16, border:`1px solid ${P.border}` } },
+            React.createElement("div", { style: { background:P.surface, borderRadius:12, padding:16, marginBottom:16, border:"1px solid "+P.border } },
               React.createElement("div", { style: { fontSize:12, fontWeight:700, color:P.textSec, marginBottom:10, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1 } }, "Comparer deux joueurs"),
 
               // Player 1
@@ -956,26 +1009,38 @@
                   value:searchTagA, onChange:function(e){setSearchTagA(e.target.value);},
                   placeholder:"Tag EVA (ex: Pseudo#123456)",
                   style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:"1px solid "+P.border, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
-                  onKeyDown: function(e){ if(e.key==="Enter"){ setCompareALoading(true); fetchProfile(searchTagA.trim(), seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); } }
+                  onKeyDown: function(e){ if(e.key==="Enter") handleSearchA(); }
                 }),
-                React.createElement("button", { onClick:function(){ setCompareALoading(true); fetchProfile(searchTagA.trim(), seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); }, style: {
-                  padding:"10px 14px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
-                }}, compareALoading ? "..." : "GO")
+                React.createElement("button", {
+                  onClick: handleSearchA,
+                  disabled: compareALoading || !searchTagA.trim(),
+                  style: {
+                    padding:"10px 14px", background: compareALoading ? P.surfaceHover : P.accent,
+                    color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13,
+                    opacity: compareALoading || !searchTagA.trim() ? 0.5 : 1
+                  }
+                }, compareALoading ? "..." : "GO")
               ),
               // Quick pick Player 1
               React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 } },
                 React.createElement("button", {
-                  onClick: function(){ setSearchTagA(myTag); setCompareA(myProfile); },
-                  style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
+                  onClick: function(){ if (compareA && compareA.user && compareA.user.username === myTag) return; setSearchTagA(myTag); setCompareA(myProfile); },
+                  disabled: compareA && compareA.user && compareA.user.username === myTag,
+                  style: { padding:"4px 8px", background: compareA && compareA.user && compareA.user.username === myTag ? P.accent+"33" : P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700, opacity: compareA && compareA.user && compareA.user.username === myTag ? 0.5 : 1 }
                 }, "Moi"),
-                friends.map(function(f,i) { return React.createElement("button", {
-                  key:"a"+i, onClick: function() { setSearchTagA(f.tag); setCompareALoading(true); fetchProfile(f.tag, seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); },
-                  style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
-                }, f.name); })
+                friends.map(function(f,i) {
+                  var isSelected = compareA && compareA.user && compareA.user.username === f.tag;
+                  return React.createElement("button", {
+                    key:"a"+i,
+                    disabled: isSelected || compareALoading,
+                    onClick: function() { if (isSelected) return; setSearchTagA(f.tag); doCompareSearch(f.tag, setCompareA, setCompareALoading); },
+                    style: { padding:"4px 8px", background: isSelected ? P.accent+"33" : P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color: isSelected ? P.accent : P.textSec, fontSize:10, fontFamily:F.mono, opacity: isSelected ? 0.5 : 1 }
+                  }, f.name);
+                })
               ),
-              compareA && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginBottom:12, color:P.accent, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
+              compareA && compareA.user && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginBottom:12, color:P.accent, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
                 React.createElement("span", null, "✓"),
-                React.createElement("span", null, compareA.user.displayName + " (LVL " + (compareA.experience?.level||"?") + ")")
+                React.createElement("span", null, compareA.user.displayName + (compareA.experience ? " (LVL " + compareA.experience.level + ")" : ""))
               ),
 
               // Player 2
@@ -985,30 +1050,42 @@
                   value:searchTag, onChange:function(e){setSearchTag(e.target.value);},
                   placeholder:"Tag EVA (ex: Pseudo#123456)",
                   style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:"1px solid "+P.border, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
-                  onKeyDown: function(e){ if(e.key==="Enter") handleSearch(); }
+                  onKeyDown: function(e){ if(e.key==="Enter") handleSearchB(); }
                 }),
-                React.createElement("button", { onClick:handleSearch, style: {
-                  padding:"10px 14px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
-                }}, searchLoading ? "..." : "GO")
+                React.createElement("button", {
+                  onClick: handleSearchB,
+                  disabled: searchLoading || !searchTag.trim(),
+                  style: {
+                    padding:"10px 14px", background: searchLoading ? P.surfaceHover : P.accent,
+                    color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13,
+                    opacity: searchLoading || !searchTag.trim() ? 0.5 : 1
+                  }
+                }, searchLoading ? "..." : "GO")
               ),
               // Quick pick Player 2
               React.createElement("div", { style: { display:"flex", gap:6, flexWrap:"wrap" } },
                 React.createElement("button", {
-                  onClick: function(){ setSearchTag(myTag); setSearchResult(myProfile); },
-                  style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
+                  onClick: function(){ if (searchResult && searchResult.user && searchResult.user.username === myTag) return; setSearchTag(myTag); setSearchResult(myProfile); },
+                  disabled: searchResult && searchResult.user && searchResult.user.username === myTag,
+                  style: { padding:"4px 8px", background: searchResult && searchResult.user && searchResult.user.username === myTag ? P.accent+"33" : P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700, opacity: searchResult && searchResult.user && searchResult.user.username === myTag ? 0.5 : 1 }
                 }, "Moi"),
-                friends.map(function(f,i) { return React.createElement("button", {
-                  key:"b"+i, onClick: function() { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag, seasonId).then(function(p){setSearchResult(p);setSearchLoading(false);}); },
-                  style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
-                }, f.name); })
+                friends.map(function(f,i) {
+                  var isSelected = searchResult && searchResult.user && searchResult.user.username === f.tag;
+                  return React.createElement("button", {
+                    key:"b"+i,
+                    disabled: isSelected || searchLoading,
+                    onClick: function() { if (isSelected) return; setSearchTag(f.tag); doCompareSearch(f.tag, setSearchResult, setSearchLoading); },
+                    style: { padding:"4px 8px", background: isSelected ? P.accent+"33" : P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color: isSelected ? P.accent : P.textSec, fontSize:10, fontFamily:F.mono, opacity: isSelected ? 0.5 : 1 }
+                  }, f.name);
+                })
               ),
-              searchResult && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginTop:6, color:P.lose, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
+              searchResult && searchResult.user && React.createElement("div", { style: { padding:"6px 10px", background:P.surfaceLight, borderRadius:6, marginTop:6, color:P.lose, fontFamily:F.mono, fontSize:12, display:"flex", alignItems:"center", gap:6 } },
                 React.createElement("span", null, "✓"),
-                React.createElement("span", null, searchResult.user.displayName + " (LVL " + (searchResult.experience?.level||"?") + ")")
+                React.createElement("span", null, searchResult.user.displayName + (searchResult.experience ? " (LVL " + searchResult.experience.level + ")" : ""))
               )
             ),
             (compareALoading || searchLoading) && React.createElement(Spinner),
-            compareA && searchResult && React.createElement(CompareView, { a:compareA, b:searchResult }),
+            compareA && compareA.user && searchResult && searchResult.user && React.createElement(CompareView, { a:compareA, b:searchResult }),
             (!compareA || !searchResult) && !compareALoading && !searchLoading && React.createElement(Empty, { text:"Sélectionnez les deux joueurs ci-dessus" })
           ),
 
