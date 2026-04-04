@@ -90,10 +90,9 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     // ═══════════════════════════════════════════════
-    //  EVA GraphQL API (direct)
+    //  EVA GraphQL API (via Cloudflare proxy)
     // ═══════════════════════════════════════════════
-    const EVA_API = "https://api.eva.gg/graphql";
-    const SEASON_ID = 8;
+    const EVA_API = "https://green-salad-fcd5.ulmeo.workers.dev/";
 
     async function evaFetch(body) {
       const res = await fetch(EVA_API, {
@@ -103,8 +102,25 @@
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const json = await res.json();
-      if (json.errors) throw new Error(json.errors[0]?.message || "GraphQL error");
+      if (json.error) throw new Error(json.error);
       return json;
+    }
+
+    const SEASONS_QUERY = `query listSeasons {
+      listSeasons {
+        nodes { id from to seasonNumber active status name }
+        itemCount
+      }
+    }`;
+
+    async function fetchSeasons() {
+      const json = await evaFetch({ operationName: "listSeasons", query: SEASONS_QUERY, variables: {} });
+      return json.data?.listSeasons?.nodes || [];
+    }
+
+    function seasonLabel(s) {
+      if (s.name) return "S" + s.seasonNumber + " " + s.name.charAt(0).toUpperCase() + s.name.slice(1);
+      return "Saison " + s.seasonNumber;
     }
 
     const PROFILE_QUERY = `query getPublicPlayerByUsername($username: String!, $seasonId: Int, $includeStatistics: Boolean = false) {
@@ -161,21 +177,21 @@
       }
     }`;
 
-    async function fetchProfile(username) {
+    async function fetchProfile(username, seasonId) {
       const json = await evaFetch({
         operationName: "getPublicPlayerByUsername",
         query: PROFILE_QUERY,
-        variables: { username, seasonId: SEASON_ID, includeStatistics: true },
+        variables: { username, seasonId: seasonId, includeStatistics: true },
       });
       if (json.errors) throw new Error(json.errors[0]?.message || "GraphQL error");
       return json.data?.getPublicPlayerByUsername || null;
     }
 
-    async function fetchHistory(userId) {
+    async function fetchHistory(userId, seasonId) {
       const json = await evaFetch({
         operationName: "useAfterhGameHistoryPageLastOnly",
         query: HISTORY_QUERY,
-        variables: { userId, seasonId: SEASON_ID },
+        variables: { userId, seasonId: seasonId },
       });
       return json.data?.listLastAfterhGameHistoriesByUserAndSeason || [];
     }
@@ -216,6 +232,31 @@
     }
     function fmtDist(m) { return m >= 1000 ? (m/1000).toFixed(1)+" km" : Math.round(m)+" m"; }
     function wr(v,t) { return t ? ((v/t)*100).toFixed(1) : "0"; }
+
+    function SeasonSelector({ seasons, selectedId, onChange }) {
+      if (!seasons || seasons.length === 0) return null;
+      return React.createElement("div", { style: {
+        display:"flex", gap:6, flexWrap:"wrap", marginBottom:14, alignItems:"center"
+      }},
+        React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono, textTransform:"uppercase", letterSpacing:1, marginRight:4 } }, "Saison"),
+        seasons.slice().reverse().map(function(s) {
+          var active = s.id === selectedId;
+          return React.createElement("button", {
+            key: s.id,
+            onClick: function() { onChange(s.id); },
+            style: {
+              padding:"4px 10px", borderRadius:6, fontSize:11, fontFamily:F.mono, fontWeight:active?700:400,
+              background: active ? (s.active ? P.accentDim : P.surfaceHover) : "transparent",
+              border: active ? "1px solid "+(s.active ? P.accent+"55" : P.border) : "1px solid "+P.border,
+              color: active ? (s.active ? P.accent : P.text) : P.textDim,
+              transition:"all 0.2s"
+            }
+          },
+            s.active ? "S"+s.seasonNumber+" ●" : "S"+s.seasonNumber + (s.name ? " "+s.name.charAt(0).toUpperCase()+s.name.slice(1) : "")
+          );
+        })
+      );
+    }
 
     // ═══════════════════════════════════════════════
     //  Components
@@ -685,30 +726,51 @@
       const [searchTagA, setSearchTagA] = useState("");
       const [compareA, setCompareA] = useState(null);
       const [compareALoading, setCompareALoading] = useState(false);
+      const [seasons, setSeasons] = useState([]);
+      const [seasonId, setSeasonId] = useState(null);
 
-      // Load my profile when tag is set
+      // Load seasons on mount
       useEffect(() => {
-        if (!myTag) return;
+        fetchSeasons().then(function(list) {
+          setSeasons(list);
+          var active = list.find(function(s) { return s.active; });
+          if (active) setSeasonId(active.id);
+          else if (list.length > 0) setSeasonId(list[list.length - 1].id);
+        }).catch(function(e) { console.error("Failed to load seasons", e); });
+      }, []);
+
+      // Load my profile when tag or season changes
+      useEffect(() => {
+        if (!myTag || !seasonId) return;
         (async () => {
           setLoading(true);
           try {
-            const p = await fetchProfile(myTag);
+            const p = await fetchProfile(myTag, seasonId);
             setMyProfile(p);
-            if (p?.user?.id) { const h = await fetchHistory(p.user.id); setMyHistory(h); }
+            if (p?.user?.id) { const h = await fetchHistory(p.user.id, seasonId); setMyHistory(h); }
           } catch(e) { console.error(e); }
           setLoading(false);
         })();
-      }, [myTag]);
+      }, [myTag, seasonId]);
+
+      // Reset compare/friend data when season changes
+      useEffect(() => {
+        setSearchResult(null);
+        setCompareA(null);
+        setFriendProfile(null);
+        setFriendHistory([]);
+        if (subTab === "profile") setSubTab("list");
+      }, [seasonId]);
 
       const loadFriend = useCallback(async (f) => {
         setSubTab("profile"); setFriendLoading(true); setFriendProfile(null); setFriendHistory([]);
         try {
-          const p = await fetchProfile(f.tag);
+          const p = await fetchProfile(f.tag, seasonId);
           setFriendProfile(p);
-          if (p?.user?.id) { const h = await fetchHistory(p.user.id); setFriendHistory(h); }
+          if (p?.user?.id) { const h = await fetchHistory(p.user.id, seasonId); setFriendHistory(h); }
         } catch(e) { console.error(e); }
         setFriendLoading(false);
-      }, []);
+      }, [seasonId]);
 
       const addFriend = useCallback(f => {
         const u = [...friends, f]; setFriends(u); saveFriends(u);
@@ -721,7 +783,7 @@
       const handleSearch = async () => {
         if (!searchTag.trim()) return;
         setSearchLoading(true); setSearchResult(null);
-        try { setSearchResult(await fetchProfile(searchTag.trim())); }
+        try { setSearchResult(await fetchProfile(searchTag.trim(), seasonId)); }
         catch(e) { console.error(e); }
         setSearchLoading(false);
       };
@@ -744,7 +806,9 @@
               }}, "EVA"),
               React.createElement("span", { style: { fontSize:13, color:P.textDim, fontFamily:F.mono } }, "companion")
             ),
-            React.createElement("div", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5, marginTop:2 } }, "by Ulmeo • S"+SEASON_ID)
+            React.createElement("div", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5, marginTop:2 } },
+              "by Ulmeo" + (seasonId && seasons.length ? " • " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? seasonLabel(s) : ""; })() : "")
+            )
           ),
           // Sidebar nav items
           React.createElement("div", { style: { flex:1, padding:"0 10px" } },
@@ -792,12 +856,17 @@
                 React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
                 React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
               ),
-              React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } }, "S"+SEASON_ID)
+              React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } },
+                seasonId && seasons.length ? (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? "S"+s.seasonNumber : ""; })() : ""
+              )
             )
           ),
 
           // Content
           React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:100, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
+
+          // Season selector (shown on all tabs except info)
+          tab !== "info" && seasons.length > 0 && React.createElement(SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
 
           tab === "profile" && React.createElement(ProfileView, { data:myProfile, history:myHistory, loading }),
 
@@ -824,9 +893,9 @@
                   value:searchTagA, onChange:function(e){setSearchTagA(e.target.value);},
                   placeholder:"Tag EVA (ex: Pseudo#123456)",
                   style: { flex:1, padding:"10px 12px", background:P.surfaceLight, border:"1px solid "+P.border, borderRadius:8, color:P.text, fontFamily:F.mono, fontSize:13 },
-                  onKeyDown: function(e){ if(e.key==="Enter"){ setCompareALoading(true); fetchProfile(searchTagA.trim()).then(function(p){setCompareA(p);setCompareALoading(false);}); } }
+                  onKeyDown: function(e){ if(e.key==="Enter"){ setCompareALoading(true); fetchProfile(searchTagA.trim(), seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); } }
                 }),
-                React.createElement("button", { onClick:function(){ setCompareALoading(true); fetchProfile(searchTagA.trim()).then(function(p){setCompareA(p);setCompareALoading(false);}); }, style: {
+                React.createElement("button", { onClick:function(){ setCompareALoading(true); fetchProfile(searchTagA.trim(), seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); }, style: {
                   padding:"10px 14px", background:P.accent, color:P.bg, border:"none", borderRadius:8, fontWeight:800, fontFamily:F.main, fontSize:13
                 }}, compareALoading ? "..." : "GO")
               ),
@@ -837,7 +906,7 @@
                   style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
                 }, "Moi"),
                 friends.map(function(f,i) { return React.createElement("button", {
-                  key:"a"+i, onClick: function() { setSearchTagA(f.tag); setCompareALoading(true); fetchProfile(f.tag).then(function(p){setCompareA(p);setCompareALoading(false);}); },
+                  key:"a"+i, onClick: function() { setSearchTagA(f.tag); setCompareALoading(true); fetchProfile(f.tag, seasonId).then(function(p){setCompareA(p);setCompareALoading(false);}); },
                   style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
                 }, f.name); })
               ),
@@ -866,7 +935,7 @@
                   style: { padding:"4px 8px", background:P.accentDim, border:"1px solid "+P.accent+"33", borderRadius:6, color:P.accent, fontSize:10, fontFamily:F.mono, fontWeight:700 }
                 }, "Moi"),
                 friends.map(function(f,i) { return React.createElement("button", {
-                  key:"b"+i, onClick: function() { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag).then(function(p){setSearchResult(p);setSearchLoading(false);}); },
+                  key:"b"+i, onClick: function() { setSearchTag(f.tag); setSearchLoading(true); fetchProfile(f.tag, seasonId).then(function(p){setSearchResult(p);setSearchLoading(false);}); },
                   style: { padding:"4px 8px", background:P.surfaceHover, border:"1px solid "+P.border, borderRadius:6, color:P.textSec, fontSize:10, fontFamily:F.mono }
                 }, f.name); })
               ),
