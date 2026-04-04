@@ -112,25 +112,40 @@
         body: JSON.stringify(body),
       }).then(function(res) {
         if (res.status === 429) {
+          // HTTP-level rate limit
           if (attempt < 3) {
-            var wait = 2000 * (attempt + 1); // 2s, 4s, 6s
-            setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, wait);
+            setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 2000 * (attempt + 1));
             return;
           }
           reject(new Error("RATE_LIMITED"));
           _processing = false;
-          setTimeout(_processQueue, 1000);
+          setTimeout(_processQueue, 2000);
           return;
         }
-        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; setTimeout(_processQueue, 150); return; }
+        if (!res.ok) { reject(new Error("HTTP " + res.status)); _processing = false; setTimeout(_processQueue, 300); return; }
         res.json().then(function(json) {
-          if (json.error) { reject(new Error(json.error)); } else { resolve(json); }
-          setTimeout(function() { _processing = false; _processQueue(); }, 150);
+          // Check for GraphQL-level rate limit (HTTP 200 but errors in body)
+          if (json.errors && json.errors[0]) {
+            var code = json.errors[0].extensions && json.errors[0].extensions.code;
+            if (code === "TOO_MANY_REQUESTS") {
+              if (attempt < 3) {
+                setTimeout(function() { _doFetch(body, resolve, reject, attempt + 1); }, 2000 * (attempt + 1));
+                return;
+              }
+              reject(new Error("RATE_LIMITED"));
+              _processing = false;
+              setTimeout(_processQueue, 2000);
+              return;
+            }
+          }
+          if (json.error) { reject(new Error(json.error)); }
+          else { resolve(json); }
+          setTimeout(function() { _processing = false; _processQueue(); }, 300);
         });
       }).catch(function(e) {
         reject(e);
         _processing = false;
-        setTimeout(_processQueue, 150);
+        setTimeout(_processQueue, 300);
       });
     }
 
@@ -247,38 +262,39 @@
 
     // ═══════════════════════════════════════════════
     //  Data Cache
-    //  Key format: "profile:username:seasonId" or "history:userId:seasonId"
-    //  Only cache inactive seasons (active season always re-fetches)
+    //  Only inactive seasons are cached (active season always re-fetches)
     // ═══════════════════════════════════════════════
     var _dataCache = {};
     var _activeSeasonId = null;
 
-    function cacheKey(type, id, sid) { return type + ":" + id + ":" + sid; }
+    function cacheKey(type, id, sid) { return type + ":" + String(id).toLowerCase() + ":" + sid; }
 
-    function getCached(type, id, sid) {
-      if (sid === _activeSeasonId) return null; // Never cache active season
-      return _dataCache[cacheKey(type, id, sid)] || null;
+    function isSeasonCacheable(sid) {
+      return sid !== _activeSeasonId;
     }
 
-    function setCache(type, id, sid, data) {
-      if (sid === _activeSeasonId) return; // Don't cache active season
-      _dataCache[cacheKey(type, id, sid)] = data;
-    }
-
-    // Cached versions of fetch functions
+    // Cached fetch - returns from cache immediately (sync) if available
     async function cachedFetchProfile(username, seasonId) {
-      var cached = getCached("profile", username, seasonId);
-      if (cached) return cached;
+      var key = cacheKey("profile", username, seasonId);
+      if (isSeasonCacheable(seasonId) && _dataCache[key]) {
+        return _dataCache[key];
+      }
       var result = await fetchProfile(username, seasonId);
-      if (result) setCache("profile", username, seasonId, result);
+      if (result && isSeasonCacheable(seasonId)) {
+        _dataCache[key] = result;
+      }
       return result;
     }
 
     async function cachedFetchHistory(userId, seasonId) {
-      var cached = getCached("history", userId, seasonId);
-      if (cached) return cached;
+      var key = cacheKey("history", userId, seasonId);
+      if (isSeasonCacheable(seasonId) && _dataCache[key]) {
+        return _dataCache[key];
+      }
       var result = await fetchHistory(userId, seasonId);
-      if (result) setCache("history", userId, seasonId, result);
+      if (result && isSeasonCacheable(seasonId)) {
+        _dataCache[key] = result;
+      }
       return result;
     }
 
@@ -872,91 +888,82 @@
         }).catch(function(e) { console.error("Failed to load seasons", e); });
       }, []);
 
-      // Load my profile when tag or season changes
+      // SINGLE unified data loader - runs sequentially, never in parallel
       const myProfileRef = useRef(null);
       const prevSeasonRef = useRef(null);
 
       useEffect(function() {
         if (!myTag || !seasonId) return;
         var cancelled = false;
-        var isSeasonChange = prevSeasonRef.current !== null && prevSeasonRef.current !== seasonId;
+
+        if (prevSeasonRef.current !== null && prevSeasonRef.current !== seasonId) {
+          clearFetchQueue();
+        }
         prevSeasonRef.current = seasonId;
 
-        if (isSeasonChange) clearFetchQueue();
-
-        // ALWAYS load own profile + history (needed across tabs)
-        setLoading(true);
-        safeFetchProfile(myTag, seasonId).then(function(p) {
-          if (cancelled) return;
-          if (p) { myProfileRef.current = p; setMyProfile(p); }
-          else if (myProfileRef.current) {
-            setMyProfile(Object.assign({}, myProfileRef.current, { statistics: null, experience: null }));
-          }
-          return (p && p.user) ? safeFetchHistory(p.user.id, seasonId) : [];
-        }).then(function(h) {
-          if (!cancelled) { setMyHistory(h || []); setLoading(false); }
-        }).catch(function() {
-          if (!cancelled) setLoading(false);
-        });
-
-        return function() { cancelled = true; };
-      }, [myTag, seasonId]);
-
-      // Load friend data when season changes AND friend tab is active
-      useEffect(function() {
-        if (!friendTag || !seasonId || subTab !== "profile") return;
-        var cancelled = false;
-        setFriendLoading(true);
-        safeFetchProfile(friendTag, seasonId).then(function(fp) {
-          if (cancelled) return;
-          if (fp) setFriendProfile(fp);
-          else setFriendProfile(function(prev) {
-            return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
-          });
-          return (fp && fp.user) ? safeFetchHistory(fp.user.id, seasonId) : [];
-        }).then(function(fh) {
-          if (!cancelled) setFriendHistory(fh || []);
-        }).catch(function() {}).finally(function() {
-          if (!cancelled) setFriendLoading(false);
-        });
-        return function() { cancelled = true; };
-      }, [seasonId, friendTag]);
-
-      // Reload compare profiles when season changes AND compare tab is active
-      useEffect(function() {
-        if (!seasonId || tab !== "compare") return;
-        var cancelled = false;
-
-        if (searchTagA && compareA) {
-          setCompareALoading(true);
-          safeFetchProfile(searchTagA, seasonId).then(function(p) {
+        async function loadAll() {
+          // Step 1: Always load own profile
+          setLoading(true);
+          try {
+            var p = await safeFetchProfile(myTag, seasonId);
             if (cancelled) return;
-            if (p) setCompareA(p);
-            else setCompareA(function(prev) {
-              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
-            });
-          }).catch(function() {}).finally(function() {
+            if (p) { myProfileRef.current = p; setMyProfile(p); }
+            else if (myProfileRef.current) {
+              setMyProfile(Object.assign({}, myProfileRef.current, { statistics: null, experience: null }));
+            }
+            var h = (p && p.user) ? await safeFetchHistory(p.user.id, seasonId) : [];
+            if (!cancelled) setMyHistory(h || []);
+          } catch(e) {}
+          if (!cancelled) setLoading(false);
+
+          // Step 2: Load friend if viewing one
+          if (!cancelled && friendTag && subTab === "profile") {
+            setFriendLoading(true);
+            try {
+              var fp = await safeFetchProfile(friendTag, seasonId);
+              if (cancelled) return;
+              if (fp) setFriendProfile(fp);
+              else setFriendProfile(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+              });
+              var fh = (fp && fp.user) ? await safeFetchHistory(fp.user.id, seasonId) : [];
+              if (!cancelled) setFriendHistory(fh || []);
+            } catch(e) {}
+            if (!cancelled) setFriendLoading(false);
+          }
+
+          // Step 3: Load compare A if selected
+          if (!cancelled && searchTagA && compareA) {
+            setCompareALoading(true);
+            try {
+              var ca = await safeFetchProfile(searchTagA, seasonId);
+              if (cancelled) return;
+              if (ca) setCompareA(ca);
+              else setCompareA(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+              });
+            } catch(e) {}
             if (!cancelled) setCompareALoading(false);
-          });
+          }
+
+          // Step 4: Load compare B if selected
+          if (!cancelled && searchTag && searchResult) {
+            setSearchLoading(true);
+            try {
+              var cb = await safeFetchProfile(searchTag, seasonId);
+              if (cancelled) return;
+              if (cb) setSearchResult(cb);
+              else setSearchResult(function(prev) {
+                return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
+              });
+            } catch(e) {}
+            if (!cancelled) setSearchLoading(false);
+          }
         }
 
-        // Small delay before second compare fetch
-        setTimeout(function() {
-          if (cancelled || !searchTag || !searchResult) return;
-          setSearchLoading(true);
-          safeFetchProfile(searchTag, seasonId).then(function(p) {
-            if (cancelled) return;
-            if (p) setSearchResult(p);
-            else setSearchResult(function(prev) {
-              return prev && prev.user ? Object.assign({}, prev, { statistics: null, experience: null }) : prev;
-            });
-          }).catch(function() {}).finally(function() {
-            if (!cancelled) setSearchLoading(false);
-          });
-        }, 500);
-
+        loadAll();
         return function() { cancelled = true; };
-      }, [seasonId, tab]);
+      }, [myTag, seasonId]);
 
       // Load friend profile on click
       const loadFriend = useCallback(function(f) {
