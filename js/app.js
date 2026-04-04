@@ -189,7 +189,7 @@ function App() {
 
     // Desktop Sidebar
     React.createElement("div", { className:"app-sidebar" },
-      React.createElement("div", { style: { padding:"16px 20px 20px" } },
+      React.createElement("div", { className:"sidebar-header", style: { padding:"12px 16px 12px" } },
         React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap:6 } },
           React.createElement("span", { style: { fontSize:22, fontWeight:800, fontFamily:F.title, background:"linear-gradient(90deg, "+P.accent+", #0088a0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" } }, "EVA"),
           React.createElement("span", { style: { fontSize:13, color:P.textDim, fontFamily:F.mono } }, "companion")
@@ -337,7 +337,8 @@ function App() {
             },
               React.createElement("img", {
                 src:t.listImg,
-                style: { width:48, height:48, objectFit:"contain",
+                className:"tab-list-img",
+                style: { objectFit:"contain",
                   filter: active ? "drop-shadow(0 0 4px rgba(0,229,255,0.4))" : "grayscale(0.5) opacity(0.5)",
                   transition:"all 0.2s" }
               }),

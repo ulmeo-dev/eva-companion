@@ -52,7 +52,9 @@
     .app-shell { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
     .app-sidebar { display: none; }
     .app-tabbar { display: flex; }
+    .tab-list-img { width: 52px; height: 52px; }
 
+    /* Desktop / tablet */
     @media (min-width: 768px) {
       .app-shell { max-width: 100%; margin: 0; flex-direction: row; }
       .app-sidebar { display: flex; flex-direction: column; width: 220px; min-width: 220px;
@@ -66,9 +68,16 @@
       .app-content { max-width: 700px; }
     }
 
+    /* Mobile landscape */
     @media (max-width: 767px) and (orientation: landscape) {
-      .app-shell { max-width: 100%; }
-      .app-content { max-width: 600px; margin: 0 auto; }
+      .app-shell { max-width: 100%; flex-direction: row; }
+      .app-sidebar { display: flex; flex-direction: column; width: 140px; min-width: 140px;
+        background: #12121a; border-right: 1px solid #2a2a3a; padding-top: max(8px, env(safe-area-inset-top)); }
+      .app-sidebar .sidebar-header { display: none; }
+      .app-sidebar > div:last-child { display: none; }
+      .app-tabbar { display: none !important; }
+      .app-header-mobile { display: none !important; }
+      .app-content { max-width: 600px; margin: 0 auto; padding-top: 8px !important; }
     }
   </style>
 
