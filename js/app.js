@@ -198,16 +198,16 @@ function App() {
           "by Ulmeo" + (seasonId && seasons.length ? " \u2022 " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? EVA.seasonShort(s) : ""; })() : "")
         )
       ),
-      React.createElement("div", { style: { flex:1, padding:"0 10px" } },
+      React.createElement("div", { style: { flex:1, padding:"0 6px" } },
         TABS.map(function(t) {
           var active = tab === t.id;
           return React.createElement("button", {
             key:t.id, onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"8px 10px", marginBottom:4, borderRadius:8,
+            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"6px", marginBottom:2, borderRadius:8,
               background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
               transition:"all 0.2s" }
           },
-            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxWidth:160, height:36, objectFit:"contain",
+            React.createElement("img", { src:t.menuImg, style: { width:"100%", height:"auto", objectFit:"contain",
               filter: active ? "drop-shadow(0 0 6px rgba(0,229,255,0.3))" : "grayscale(0.5) opacity(0.5)",
               transition:"all 0.2s" } })
           );
@@ -337,7 +337,7 @@ function App() {
             },
               React.createElement("img", {
                 src:t.listImg,
-                style: { width:32, height:32, objectFit:"contain",
+                style: { width:48, height:48, objectFit:"contain",
                   filter: active ? "drop-shadow(0 0 4px rgba(0,229,255,0.4))" : "grayscale(0.5) opacity(0.5)",
                   transition:"all 0.2s" }
               }),
