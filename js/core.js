@@ -2,6 +2,7 @@
 //  EVA Companion - Look4PVP (Salle) Module
 // ═══════════════════════════════════════════════
 
+var EVA = window.EVA = {};
 var P = EVA.P, F = EVA.F;
 var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef, useCallback = React.useCallback;
 
