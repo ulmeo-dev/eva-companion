@@ -118,7 +118,7 @@ EVA.fetchLocations = async function() {
   return list;
 };
 
-var LOCATION_DETAIL_QUERY = 'query getLocationById($id: Int!, $includeDetails: Boolean = false, $includeMedias: Boolean = false, $includeMenu: Boolean = false, $includeNextOpeningDays: Boolean = false) { location(id: $id) { id identifier name department telephone emailContact country language status fullAddress addressMapsUrl geolocationPoint services { type } } }';
+var LOCATION_DETAIL_QUERY = 'query getLocationById($id: Int!) { location(id: $id) { id identifier name department telephone emailContact country language status fullAddress addressMapsUrl geolocationPoint services { type } } }';
 
 var _locationDetailCache = {};
 EVA.fetchLocationDetail = async function(locationId) {
@@ -126,7 +126,7 @@ EVA.fetchLocationDetail = async function(locationId) {
   var json = await evaFetch({
     operationName: "getLocationById",
     query: LOCATION_DETAIL_QUERY,
-    variables: { id: locationId, includeDetails: false, includeMedias: false, includeMenu: false, includeNextOpeningDays: false },
+    variables: { id: locationId },
   });
   var loc = json.data ? json.data.location : null;
   if (loc) _locationDetailCache[locationId] = loc;
