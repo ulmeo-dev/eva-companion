@@ -133,7 +133,7 @@ EVA.fetchLocationDetail = async function(locationId) {
   return loc;
 };
 
-var SESSIONS_QUERY = 'query useSessions($data: ListLocationSessionsByDateInput!, $country: CountryEnum!) { listLocationGameSessionsByDate(data: $data) { takenSeatCount totalSeatCount availableSeatCount unitPrice regularUnitPrice pricingType matchmakingLevel slot { id startTime duration } terrain { id displayNumber } game { id identifier name imageUrl } competitiveMode { isActive isAvailable } alreadyBooked } }';
+var SESSIONS_QUERY = 'query useSessions($data: ListLocationSessionsByDateInput!, $country: CountryEnum!) { listLocationGameSessionsByDate(data: $data) { takenSeatCount totalSeatCount availableSeatCount unitPrice regularUnitPrice pricingType matchmakingLevel slot { id startTime duration } terrain { id displayNumber } game { id identifier name minimumAgeRestriction(country: $country) imageUrl } competitiveMode { isActive isAvailable } alreadyBooked } }';
 
 EVA.fetchSessions = async function(locationId, date) {
   var json = await evaFetch({
