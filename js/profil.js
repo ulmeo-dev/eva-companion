@@ -58,7 +58,7 @@ EVA.MatchCard = function(props) {
     return a.data.rank - b.data.rank;
   });
 
-  var mvpId = game.players.length > 0 ? game.players[0].userId : null;
+  var mvpPlayerId = game.players.length > 0 ? game.players[0].id : null;
 
   return React.createElement("div", {
     className: "fade-in",
@@ -77,7 +77,7 @@ EVA.MatchCard = function(props) {
           React.createElement("span", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono } }, EVA.fmtDT(game.createdAt))
         ),
         me && React.createElement("div", { style: { display:"flex", gap:12, marginTop:3, fontSize:12, alignItems:"center" } },
-          me.userId === mvpId && React.createElement("span", { style: { fontSize:13 }, title:"MVP" }, "\uD83D\uDC51"),
+          me.id === mvpPlayerId && React.createElement("span", { style: { fontSize:13 }, title:"MVP" }, "\uD83D\uDC51"),
           React.createElement("span", { style: { color:P.textSec } }, isFFA ? "FFA" : game.data.teamOne.score+" - "+game.data.teamTwo.score),
           React.createElement("span", { style: { color:P.accent, fontFamily:F.mono, fontWeight:600 } }, me.data.kills+"/"+me.data.deaths+"/"+me.data.assists),
           React.createElement("span", { style: { color:P.textDim } }, me.data.inflictedDamage+" dmg"),
@@ -95,7 +95,7 @@ EVA.MatchCard = function(props) {
       sorted.map(function(p) {
         var isMe = p.userId === meId;
         var pW = p.data.outcome === "Victory";
-        var isMvp = p.userId === mvpId;
+        var isMvp = p.id === mvpPlayerId;
         var teamColor = pW ? P.win : P.lose;
         var highlightBg = isMe ? (pW ? P.winDim : P.loseDim) : "transparent";
         return React.createElement("div", { key: p.id, style: {
