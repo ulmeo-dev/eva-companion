@@ -103,6 +103,21 @@ EVA.fetchHistory = async function(userId, seasonId) {
   return json.data ? json.data.listLastAfterhGameHistoriesByUserAndSeason : [];
 };
 
+var LOCATIONS_QUERY = 'query listLocations($country: CountryEnum!, $sortOrder: SortOrderLocationsInput) { listLocations(country: $country, sortOrder: $sortOrder) { id identifier name department telephone emailContact country language status iconUrl } }';
+
+var _locationsCache = null;
+EVA.fetchLocations = async function() {
+  if (_locationsCache) return _locationsCache;
+  var json = await evaFetch({
+    operationName: "listLocations",
+    query: LOCATIONS_QUERY,
+    variables: { country: "FR", sortOrder: { by: "DEPARTMENT" } },
+  });
+  var list = json.data ? json.data.listLocations : [];
+  if (list.length > 0) _locationsCache = list;
+  return list;
+};
+
 // ── Data Cache ──
 var _dataCache = {};
 EVA._activeSeasonId = null;
