@@ -118,6 +118,35 @@ EVA.fetchLocations = async function() {
   return list;
 };
 
+var LOCATION_DETAIL_QUERY = 'query getLocationById($id: Int!, $includeDetails: Boolean = false, $includeMedias: Boolean = false, $includeMenu: Boolean = false, $includeNextOpeningDays: Boolean = false) { location(id: $id) { id identifier name department telephone emailContact country language status fullAddress addressMapsUrl geolocationPoint services { type } } }';
+
+var _locationDetailCache = {};
+EVA.fetchLocationDetail = async function(locationId) {
+  if (_locationDetailCache[locationId]) return _locationDetailCache[locationId];
+  var json = await evaFetch({
+    operationName: "getLocationById",
+    query: LOCATION_DETAIL_QUERY,
+    variables: { id: locationId, includeDetails: false, includeMedias: false, includeMenu: false, includeNextOpeningDays: false },
+  });
+  var loc = json.data ? json.data.location : null;
+  if (loc) _locationDetailCache[locationId] = loc;
+  return loc;
+};
+
+var SESSIONS_QUERY = 'query useSessions($data: ListLocationSessionsByDateInput!, $country: CountryEnum!) { listLocationGameSessionsByDate(data: $data) { takenSeatCount totalSeatCount availableSeatCount unitPrice regularUnitPrice pricingType matchmakingLevel slot { id startTime duration } terrain { id displayNumber } game { id identifier name imageUrl } competitiveMode { isActive isAvailable } alreadyBooked } }';
+
+EVA.fetchSessions = async function(locationId, date) {
+  var json = await evaFetch({
+    operationName: "useSessions",
+    query: SESSIONS_QUERY,
+    variables: {
+      country: "FR",
+      data: { date: date, isCompetitiveModeOnly: false, locationId: locationId, seatCount: 1, seatTypes: ["PLAYER"], gameIdList: [1] }
+    },
+  });
+  return json.data ? json.data.listLocationGameSessionsByDate : [];
+};
+
 // ── Data Cache ──
 var _dataCache = {};
 EVA._activeSeasonId = null;
