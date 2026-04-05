@@ -58,9 +58,7 @@ EVA.MatchCard = function(props) {
     return a.data.rank - b.data.rank;
   });
 
-  var ranked1 = game.players.filter(function(p) { return p.data.rank === 1; });
-  var mvpPlayer = ranked1.length > 0 ? ranked1.reduce(function(best, p) { return p.data.score > best.data.score ? p : best; }, ranked1[0]) : null;
-  var mvpId = mvpPlayer ? mvpPlayer.userId : null;
+  var mvpId = game.players.length > 0 ? game.players[0].userId : null;
 
   return React.createElement("div", {
     className: "fade-in",
