@@ -179,15 +179,15 @@ EVA.Look4PVPView = function() {
     // ── Location info bar ──
     selected && detail && React.createElement("div", { style: { display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" } },
       // Phone
-      React.createElement("a", {
-        href:"tel:"+selected.telephone.replace(/\s/g,""),
+      detail.telephone && React.createElement("a", {
+        href:"tel:"+detail.telephone.replace(/\s/g,""),
         style: { padding:"8px 12px", background:P.surface, borderRadius:8, border:"1px solid "+P.border, color:P.accent, fontFamily:F.mono, fontSize:12, textDecoration:"none", fontWeight:600 }
-      }, fmtPhone(selected.telephone)),
+      }, fmtPhone(detail.telephone)),
       // Email
-      React.createElement("a", {
-        href:"mailto:"+selected.emailContact,
+      detail.emailContact && React.createElement("a", {
+        href:"mailto:"+detail.emailContact,
         style: { padding:"8px 12px", background:P.surface, borderRadius:8, border:"1px solid "+P.border, color:P.accent, fontFamily:F.mono, fontSize:11, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:200 }
-      }, selected.emailContact),
+      }, detail.emailContact),
       // Maps
       detail.addressMapsUrl && React.createElement("a", {
         href: detail.addressMapsUrl, target:"_blank", rel:"noopener noreferrer",
