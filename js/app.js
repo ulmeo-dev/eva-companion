@@ -241,7 +241,7 @@ function App() {
       // Content
       React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:140, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
 
-        tab !== "look4pvp" && seasons.length > 0 && React.createElement(EVA.SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
+        tab !== "look4pvp" && tab !== "armory" && seasons.length > 0 && React.createElement(EVA.SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
 
         tab === "profile" && React.createElement(EVA.ProfileView, { data:myProfile, history:myHistory, loading:loading, seasons:seasons, currentSeasonId:seasonId }),
 
@@ -319,6 +319,8 @@ function App() {
           compareA && compareA.user && searchResult && searchResult.user && React.createElement(EVA.CompareView, { a:compareA, b:searchResult }),
           (!compareA || !searchResult) && !compareALoading && !searchLoading && React.createElement(EVA.Empty, { text:"Sélectionnez les deux joueurs ci-dessus" })
         ),
+
+        tab === "armory" && React.createElement(EVA.ArmoryView),
 
         tab === "look4pvp" && React.createElement(EVA.Look4PVPView)
       ),

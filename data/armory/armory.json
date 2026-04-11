@@ -1,0 +1,439 @@
+{
+  "gears": [
+    {
+      "name": "sonar",
+      "icon": "sonar.png",
+      "stats": [
+        { "key": "Time before explosion (s)", "value": 0 },
+        { "key": "Reload (s)", "value": 40 },
+        { "key": "Max range (m)", "value": 8 }
+      ]
+    },
+    {
+      "name": "sticky",
+      "icon": "sticky.png",
+      "stats": [
+        { "key": "Time before explosion (s)", "value": 2.5 },
+        { "key": "Reload (s)", "value": 20 },
+        { "key": "Max damage", "value": 95 },
+        { "key": "Max damage range (m)", "value": 3 },
+        { "key": "Max range (m)", "value": 5 }
+      ]
+    },
+    {
+      "name": "dx3",
+      "icon": "dx3.png",
+      "stats": [
+        { "key": "Time before explosion (s)", "value": 3.5 },
+        { "key": "Reload (s)", "value": 45 },
+        { "key": "Max damage", "value": 100 },
+        { "key": "Max damage range (m)", "value": 2 },
+        { "key": "Max range (m)", "value": 4 }
+      ]
+    },
+    {
+      "name": "shield",
+      "icon": "shield.png",
+      "stats": [
+        { "key": "Life", "value": 400 },
+        { "key": "Duration (s)", "value": 10 },
+        { "key": "Time before activation (s)", "value": 0.7 },
+        { "key": "Reload (s)", "value": 45 }
+      ]
+    }
+  ],
+  "weapons": {
+    "assault rifles": [
+      {
+        "name": "vulkan",
+        "icon": "vulkan.png",
+        "damage": [
+          { "key": "head", "value": 19 },
+          { "key": "body", "value": 17 },
+          { "key": "other", "value": 15 }
+        ],
+        "range": [
+          { "min": 0, "max": 30, "value": 100 },
+          { "min": 30, "max": 50, "value": 75 }
+        ],
+        "dispersion": [
+          { "key": "First bullet", "value": 0 },
+          { "key": "Second bullet", "value": 0.1 },
+          { "key": "Third bullet", "value": 0.15 }
+        ],
+        "stats": [
+          { "key": "Time between two bursts (s)", "value": 0.20, "display": "value" },
+          { "key": "Bullets per burst", "value": 3, "display": "value" },
+          { "key": "Burst speed", "value": 0.16, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 750, "display": "value" },
+          { "key": "Capacity", "value": 30, "display": "value" },
+          { "key": "Reload (s)", "value": 1.5, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.4, "display": "value" }
+        ]
+      },
+      {
+        "name": "mx42",
+        "icon": "mx42.png",
+        "damage": [
+          { "key": "head", "value": 15 },
+          { "key": "body", "value": 13 },
+          { "key": "other", "value": 10 }
+        ],
+        "range": [
+          { "min": 0, "max": 22, "value": 100 },
+          { "min": 22, "max": 30, "value": 85 },
+          { "min": 30, "max": 50, "value": 75 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0.25 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 660, "display": "value" },
+          { "key": "Capacity", "value": 40, "display": "value" },
+          { "key": "Reload (s)", "value": 1.5, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.6, "display": "value" }
+        ]
+      },
+      {
+        "name": "ak-77",
+        "icon": "ak-77.png",
+        "damage": [
+          { "key": "head", "value": 17 },
+          { "key": "body", "value": 15 },
+          { "key": "other", "value": 14 }
+        ],
+        "range": [
+          { "min": 0, "max": 25, "value": 100 },
+          { "min": 25, "max": 35, "value": 83 },
+          { "min": 35, "max": 50, "value": 75 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0.3 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 552, "display": "value" },
+          { "key": "Capacity", "value": 35, "display": "value" },
+          { "key": "Reload (s)", "value": 1.8, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.6, "display": "value" }
+        ]
+      }
+    ],
+    "submachine_guns": [
+      {
+        "name": "mp-52",
+        "icon": "mp-52.png",
+        "damage": [
+          { "key": "head", "value": 19 },
+          { "key": "body", "value": 16 },
+          { "key": "other", "value": 14 }
+        ],
+        "range": [
+          { "min": 0, "max": 8, "value": 100 },
+          { "min": 8, "max": 9, "value": 70 },
+          { "min": 9, "max": 15, "value": 55 },
+          { "min": 15, "max": 50, "value": 45 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 1.431 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 558, "display": "value" },
+          { "key": "Capacity", "value": 35, "display": "value" },
+          { "key": "Reload (s)", "value": 1, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 700, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.3, "display": "value" }
+        ]
+      },
+      {
+        "name": "striker",
+        "icon": "striker.png",
+        "damage": [
+          { "key": "head", "value": 19 },
+          { "key": "body", "value": 15 },
+          { "key": "other", "value": 13 }
+        ],
+        "range": [
+          { "min": 0, "max": 5, "value": 100 },
+          { "min": 5, "max": 8, "value": 65 },
+          { "min": 8, "max": 10, "value": 55 },
+          { "min": 10, "max": 50, "value": 30 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 1.5 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 780, "display": "value" },
+          { "key": "Capacity", "value": 30, "display": "value" },
+          { "key": "Reload (s)", "value": 1, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 700, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.3, "display": "value" }
+        ]
+      },
+      {
+        "name": "spectre",
+        "icon": "spectre.png",
+        "damage": [
+          { "key": "head", "value": 12 },
+          { "key": "body", "value": 10 },
+          { "key": "other", "value": 9 }
+        ],
+        "range": [
+          { "min": 0, "max": 8, "value": 100 },
+          { "min": 8, "max": 12, "value": 65 },
+          { "min": 12, "max": 20, "value": 50 },
+          { "min": 20, "max": 50, "value": 40 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 1.35 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 1020, "display": "value" },
+          { "key": "Capacity", "value": 45, "display": "value" },
+          { "key": "Reload (s)", "value": 1, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 700, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.4, "display": "value" }
+        ]
+      }
+    ],
+    "light machine guns": [
+      {
+        "name": "fury",
+        "icon": "fury.png",
+        "damage": [
+          { "key": "head", "value": 25 },
+          { "key": "body", "value": 20 },
+          { "key": "other", "value": 18 }
+        ],
+        "range": [
+          { "min": 0, "max": 50, "value": 100 },
+          { "min": 50, "max": 70, "value": 80 },
+          { "min": 70, "max": 100, "value": 70 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion (static)", "value": 0.15 },
+          { "key": "Dispersion (mobile)", "value": 10 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 450, "display": "value" },
+          { "key": "Capacity", "value": 75, "display": "value" },
+          { "key": "Reload (s)", "value": 4, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.9, "display": "value" }
+        ]
+      }
+    ],
+    "sniper rifles": [
+      {
+        "name": "atlas",
+        "icon": "atlas.png",
+        "damage": [
+          { "key": "head", "value": 150 },
+          { "key": "body", "value": 95 },
+          { "key": "other", "value": 95 }
+        ],
+        "range": [
+          { "min": 0, "max": 100, "value": 100 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion (static)", "value": 0 },
+          { "key": "Dispersion (mobile)", "value": 25 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 60, "display": "value" },
+          { "key": "Capacity", "value": 5, "display": "value" },
+          { "key": "Reload (s)", "value": 2.5, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 3000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.9, "display": "value" }
+        ]
+      }
+    ],
+      "marksman rifles": [
+      {
+        "name": "needle",
+        "icon": "needle.png",
+        "damage": [
+          { "key": "head", "value": 34 },
+          { "key": "body", "value": 28 },
+          { "key": "other", "value": 28 }
+        ],
+        "range": [
+          { "min": 0, "max": 100, "value": 100 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 258, "display": "value" },
+          { "key": "Capacity", "value": 20, "display": "value" },
+          { "key": "Reload (s)", "value": 1.5, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 2000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.6, "display": "value" }
+        ]
+      },
+      {
+        "name": "westfire",
+        "icon": "westfire.png",
+        "damage": [
+          { "key": "head", "value": 100 },
+          { "key": "body", "value": 60 },
+          { "key": "other", "value": 45 }
+        ],
+        "range": [
+          { "min": 0, "max": 5, "value": 70 },
+          { "min": 5, "max": 25, "value": 100 },
+          { "min": 25, "max": 100, "value": 80 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 63, "display": "value" },
+          { "key": "Capacity", "value": 9, "display": "value" },
+          { "key": "Reload (s)", "value": 3.6, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 3000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.8, "display": "value" }
+        ]
+      }
+    ],
+      "pistols": [
+      {
+        "name": "warden",
+        "icon": "warden.png",
+        "damage": [
+          { "key": "head", "value": 40 },
+          { "key": "body", "value": 32 },
+          { "key": "other", "value": 28 }
+        ],
+        "range": [
+          { "min": 0, "max": 100, "value": 100 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 288, "display": "value" },
+          { "key": "Capacity", "value": 9, "display": "value" },
+          { "key": "Reload (s)", "value": 1.2, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 2000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.25, "display": "value" }
+        ]
+      },
+      {
+        "name": "socom",
+        "icon": "socom.png",
+        "damage": [
+          { "key": "head", "value": 20 },
+          { "key": "body", "value": 18 },
+          { "key": "other", "value": 14 }
+        ],
+        "range": [
+          { "min": 0, "max": 16, "value": 100 },
+          { "min": 16, "max": 50, "value": 75 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 360, "display": "value" },
+          { "key": "Capacity", "value": 12, "display": "value" },
+          { "key": "Reload (s)", "value": 0.5, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 500, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.1, "display": "value" }
+        ]
+      }
+    ],
+      "shotguns": [
+      {
+        "name": "t1 gauss",
+        "icon": "t1_gauss.png",
+        "damage": [
+          { "key": "head", "value": 110 },
+          { "key": "body", "value": 110 },
+          { "key": "other", "value": 80 }
+        ],
+        "range": [
+          { "min": 0, "max": 3.5, "value": 100 },
+          { "min": 3.5, "max": 6, "value": 50 },
+          { "min": 6, "max": 10, "value": 40 },
+          { "min": 10, "max": 15, "value": 20 },
+          { "min": 15, "max": 30, "value": 0 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 2 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 54, "display": "value" },
+          { "key": "Capacity", "value": 5, "display": "value" },
+          { "key": "Reload (s)", "value": 3, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 5000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.5, "display": "value" }
+        ]
+      },
+      {
+        "name": "m12 tactical",
+        "icon": "m12_tactical.png",
+        "damage": [
+          { "key": "head", "value": 80 },
+          { "key": "body", "value": 80 },
+          { "key": "other", "value": 51 },
+          { "key": "charged", "value": 100 }
+        ],
+        "range": [
+          { "min": 0, "max": 5, "value": 100 },
+          { "min": 5, "max": 10, "value": 70 },
+          { "min": 10, "max": 30, "value": 60 }
+        ],
+        "mode": {
+          "name": "charged",
+          "damage": 100,
+          "range": [
+            { "min": 0, "max": 6, "value": 100 },
+            { "min": 6, "max": 15, "value": 70 },
+            { "min": 15, "max": 30, "value": 60 }
+          ],
+          "cooldown": 35
+        },
+        "dispersion": [
+          { "key": "Dispersion", "value": 2.5 },
+          { "key": "Dispersion (charged)", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 162, "display": "value" },
+          { "key": "Capacity", "value": 8, "display": "value" },
+          { "key": "Reload (s)", "value": 2, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 5000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.3, "display": "value" }
+        ]
+      }
+    ],
+    "laser weapons": [
+      {
+        "name": "erg",
+        "icon": "erg.png",
+        "damage": [
+          { "key": "head", "value": 1.62 },
+          { "key": "body", "value": 1.22 },
+          { "key": "other", "value": 1.10 }
+        ],
+        "range": [
+          { "min": 0, "max": 20, "value": 100 },
+          { "min": 20, "max": 30, "value": 80 },
+          { "min": 30, "max": 50, "value": 70 }
+        ],
+        "dispersion": [
+          { "key": "Dispersion", "value": 0 }
+        ],
+        "stats": [
+          { "key": "Cadence (rpm)", "value": 6000, "display": "value" },
+          { "key": "Capacity", "value": 400, "display": "value" },
+          { "key": "Reload (s)", "value": 2, "display": "value" },
+          { "key": "Bullet speed (m/s)", "value": 5000, "display": "value" },
+          { "key": "Time to switch (s)", "value": 0.6, "display": "value" }
+        ]
+      }
+    ]
+  }
+}

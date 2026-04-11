@@ -300,5 +300,6 @@ EVA.TABS = [
   { id:"profile", label:"Profil", listImg:"data/profil-list.png", menuImg:"data/profil-menu.png" },
   { id:"friends", label:"Amis", listImg:"data/friends-list.png", menuImg:"data/friends-menu.png" },
   { id:"compare", label:"VS", listImg:"data/compare-list.png", menuImg:"data/compare-menu.png" },
+  { id:"armory", label:"Armory", listImg:"data/armory-list.png", menuImg:"data/armory-menu.png" },
   { id:"look4pvp", label:"Salle", listImg:"data/look4pvp-list.png", menuImg:"data/look4pvp-menu.png" },
 ];
