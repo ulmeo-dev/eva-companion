@@ -189,28 +189,25 @@ function App() {
 
     // Desktop Sidebar
     React.createElement("div", { className:"app-sidebar" },
-      React.createElement("div", { className:"sidebar-header", style: { padding:"12px 16px 12px" } },
+      React.createElement("div", { className:"sidebar-header", style: { padding:"14px 16px" } },
         React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap:6 } },
-          React.createElement("span", { style: { fontSize:22, fontWeight:800, fontFamily:F.title, background:"linear-gradient(90deg, "+P.accent+", #0088a0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" } }, "EVA"),
-          React.createElement("span", { style: { fontSize:13, color:P.textDim, fontFamily:F.mono } }, "companion")
+          React.createElement("span", { style: { fontSize:26, fontWeight:800, fontFamily:F.title, background:"linear-gradient(90deg, "+P.accent+", #0088a0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" } }, "EVA"),
+          React.createElement("span", { style: { fontSize:18, fontWeight:800, fontFamily:F.title, color:P.textSec } }, "Companion")
         ),
-        React.createElement("div", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5, marginTop:2 } },
+        React.createElement("div", { style: { fontSize:11, color:P.textDim, fontFamily:F.mono, opacity:0.6, marginTop:4 } },
           "by Ulmeo" + (seasonId && seasons.length ? " \u2022 " + (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? EVA.seasonShort(s) : ""; })() : "")
         )
       ),
-      React.createElement("div", { style: { flex:1, padding:"6px 6px 0", display:"flex", flexDirection:"column", justifyContent:"flex-start", gap:2, overflow:"hidden" } },
+      React.createElement("div", { style: { flex:1, padding:"8px 10px 0", display:"flex", flexDirection:"column", justifyContent:"flex-start", gap:4, overflow:"hidden" } },
         TABS.map(function(t) {
           var active = tab === t.id;
           return React.createElement("button", {
             key:t.id, onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-            style: { display:"flex", alignItems:"center", justifyContent:"center", width:"100%", padding:"4px 6px", borderRadius:8,
-              background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"33" : "1px solid transparent",
-              transition:"all 0.2s", flexShrink:1 }
-          },
-            React.createElement("img", { src:t.menuImg, style: { width:"100%", maxHeight:"calc((100vh - 140px) / 8)", objectFit:"contain",
-              filter: active ? "drop-shadow(0 0 6px rgba(0,229,255,0.3))" : "grayscale(0.5) opacity(0.5)",
-              transition:"all 0.2s" } })
-          );
+            style: { display:"flex", alignItems:"center", justifyContent:"flex-start", width:"100%", padding:"10px 14px", borderRadius:8,
+              background: active ? P.accentDim : "transparent", border: active ? "1px solid "+P.accent+"55" : "1px solid transparent",
+              transition:"all 0.2s", fontFamily:F.title, fontSize:15, fontWeight:800, letterSpacing:1.5,
+              color: active ? P.accent : P.textSec, textTransform:"uppercase", cursor:"pointer" }
+          }, t.label);
         })
       ),
       React.createElement("div", { style: { padding:"12px 20px", borderTop:"1px solid "+P.border, fontSize:10, color:P.textDim, fontFamily:F.mono } },
@@ -228,9 +225,9 @@ function App() {
       }},
         React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between" } },
           React.createElement("div", { style: { display:"flex", alignItems:"baseline", gap: 6 } },
-            React.createElement("span", { style: { fontSize:20, fontWeight:800, fontFamily:F.title, background:"linear-gradient(90deg, "+P.accent+", #0088a0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" } }, "EVA"),
-            React.createElement("span", { style: { fontSize:14, color:P.textDim, fontFamily:F.mono } }, "companion"),
-            React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono, opacity:0.5 } }, "by Ulmeo")
+            React.createElement("span", { style: { fontSize:24, fontWeight:800, fontFamily:F.title, background:"linear-gradient(90deg, "+P.accent+", #0088a0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" } }, "EVA"),
+            React.createElement("span", { style: { fontSize:16, fontWeight:800, fontFamily:F.title, color:P.textSec } }, "Companion"),
+            React.createElement("span", { style: { fontSize:12, color:P.textDim, fontFamily:F.mono, opacity:0.6 } }, "by Ulmeo")
           ),
           React.createElement("span", { style: { fontSize:10, color:P.textDim, fontFamily:F.mono } },
             seasonId && seasons.length ? (function(){ var s=seasons.find(function(x){return x.id===seasonId;}); return s ? "S"+s.seasonNumber : ""; })() : ""
@@ -239,11 +236,23 @@ function App() {
       ),
 
       // Content
-      React.createElement("div", { className:"app-content", style: { flex:1, padding:16, paddingBottom:140, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
+      React.createElement("div", { className: "app-content" + (tab === "compare" || tab === "armory" ? " app-content-wide" : ""), style: { flex:1, padding:16, paddingBottom:140, overflowY:"auto", WebkitOverflowScrolling:"touch", width:"100%" } },
 
         tab !== "look4pvp" && tab !== "armory" && seasons.length > 0 && React.createElement(EVA.SeasonSelector, { seasons:seasons, selectedId:seasonId, onChange:setSeasonId }),
 
-        tab === "profile" && React.createElement(EVA.ProfileView, { data:myProfile, history:myHistory, loading:loading, seasons:seasons, currentSeasonId:seasonId }),
+        tab === "profile" && React.createElement("div", null,
+          React.createElement("div", { style: { display:"flex", justifyContent:"flex-end", marginBottom:8 } },
+            React.createElement("button", {
+              onClick: function() {
+                if (confirm("Réinitialiser ton profil ? Cela te permet de changer de tag. Tes amis seront conservés.")) {
+                  EVA.saveMyTag(""); setMyTag(""); setMyProfile(null); setMyHistory([]);
+                }
+              },
+              style: { background:"transparent", border:"1px solid "+P.border, color:P.textSec, fontFamily:F.mono, fontSize:11, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:700 }
+            }, "\u21BB Changer de pseudo")
+          ),
+          React.createElement(EVA.ProfileView, { data:myProfile, history:myHistory, loading:loading, seasons:seasons, currentSeasonId:seasonId })
+        ),
 
         tab === "friends" && (
           subTab === "profile"
@@ -335,16 +344,14 @@ function App() {
             var active = tab === t.id;
             return React.createElement("button", {
               key:t.id, onClick: function() { setTab(t.id); if(t.id==="friends") setSubTab("list"); },
-              style: { background:"none", border:"none", padding:"5px 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:1, opacity:active?1:0.5, transition:"all 0.2s" }
+              style: { background:"none", border:"none", padding:"8px 6px", display:"flex", flexDirection:"column", alignItems:"center", gap:4, flex:1, transition:"all 0.2s", cursor:"pointer" }
             },
-              React.createElement("img", {
-                src:t.listImg,
-                className:"tab-list-img",
-                style: { objectFit:"contain",
-                  filter: active ? "drop-shadow(0 0 4px rgba(0,229,255,0.4))" : "grayscale(0.5) opacity(0.5)",
-                  transition:"all 0.2s" }
-              }),
-              active && React.createElement("div", { style: { width:16, height:2, borderRadius:1, background:P.accent, marginTop:2, boxShadow:"0 0 6px "+P.accentGlow } })
+              React.createElement("span", { style: {
+                fontFamily:F.title, fontSize:12, fontWeight:800, letterSpacing:1,
+                color: active ? P.accent : P.textDim, textTransform:"uppercase",
+                transition:"color 0.2s"
+              }}, t.label),
+              active && React.createElement("div", { style: { width:20, height:2, borderRadius:1, background:P.accent, boxShadow:"0 0 6px "+P.accentGlow } })
             );
           })
         )
