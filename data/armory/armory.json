@@ -59,9 +59,10 @@
         "dispersion": [
           { "key": "First bullet", "value": 0 },
           { "key": "Second bullet", "value": 0.1 },
-          { "key": "Third bullet", "value": 0.15 }
+          { "key": "Third bullet", "value": 0.11 }
         ],
         "stats": [
+          { "key": "Burst (s)", "value": 0.16, "display": "value" },
           { "key": "Time between two bursts (s)", "value": 0.20, "display": "value" },
           { "key": "Bullets per burst", "value": 3, "display": "value" },
           { "key": "Burst speed", "value": 0.16, "display": "value" },
@@ -73,7 +74,7 @@
         ]
       },
       {
-        "name": "mx42",
+        "name": "mx-42",
         "icon": "mx42.png",
         "damage": [
           { "key": "head", "value": 15 },
@@ -89,7 +90,7 @@
           { "key": "Dispersion", "value": 0.25 }
         ],
         "stats": [
-          { "key": "Cadence (rpm)", "value": 660, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 672, "display": "value" },
           { "key": "Capacity", "value": 40, "display": "value" },
           { "key": "Reload (s)", "value": 1.5, "display": "value" },
           { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
@@ -113,7 +114,7 @@
           { "key": "Dispersion", "value": 0.3 }
         ],
         "stats": [
-          { "key": "Cadence (rpm)", "value": 552, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 570, "display": "value" },
           { "key": "Capacity", "value": 35, "display": "value" },
           { "key": "Reload (s)", "value": 1.8, "display": "value" },
           { "key": "Bullet speed (m/s)", "value": 1000, "display": "value" },
@@ -121,7 +122,7 @@
         ]
       }
     ],
-    "submachine_guns": [
+    "submachine guns": [
       {
         "name": "mp-52",
         "icon": "mp-52.png",
@@ -140,7 +141,7 @@
           { "key": "Dispersion", "value": 1.431 }
         ],
         "stats": [
-          { "key": "Cadence (rpm)", "value": 558, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 630, "display": "value" },
           { "key": "Capacity", "value": 35, "display": "value" },
           { "key": "Reload (s)", "value": 1, "display": "value" },
           { "key": "Bullet speed (m/s)", "value": 700, "display": "value" },
@@ -217,6 +218,7 @@
           { "key": "Dispersion (mobile)", "value": 10 }
         ],
         "stats": [
+          { "key": "Max static speed (m/s)", "value": 0.35, "display": "value" },
           { "key": "Cadence (rpm)", "value": 450, "display": "value" },
           { "key": "Capacity", "value": 75, "display": "value" },
           { "key": "Reload (s)", "value": 4, "display": "value" },
@@ -256,8 +258,8 @@
         "icon": "needle.png",
         "damage": [
           { "key": "head", "value": 34 },
-          { "key": "body", "value": 28 },
-          { "key": "other", "value": 28 }
+          { "key": "body", "value": 30 },
+          { "key": "other", "value": 30 }
         ],
         "range": [
           { "min": 0, "max": 100, "value": 100 }
@@ -314,7 +316,7 @@
           { "key": "Dispersion", "value": 0 }
         ],
         "stats": [
-          { "key": "Cadence (rpm)", "value": 288, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 270, "display": "value" },
           { "key": "Capacity", "value": 9, "display": "value" },
           { "key": "Reload (s)", "value": 1.2, "display": "value" },
           { "key": "Bullet speed (m/s)", "value": 2000, "display": "value" },
@@ -325,8 +327,8 @@
         "name": "socom",
         "icon": "socom.png",
         "damage": [
-          { "key": "head", "value": 20 },
-          { "key": "body", "value": 18 },
+          { "key": "head", "value": 25 },
+          { "key": "body", "value": 20 },
           { "key": "other", "value": 14 }
         ],
         "range": [
@@ -378,8 +380,7 @@
         "damage": [
           { "key": "head", "value": 80 },
           { "key": "body", "value": 80 },
-          { "key": "other", "value": 51 },
-          { "key": "charged", "value": 100 }
+          { "key": "other", "value": 51 }
         ],
         "range": [
           { "min": 0, "max": 5, "value": 100 },
@@ -391,17 +392,17 @@
           "damage": 100,
           "range": [
             { "min": 0, "max": 6, "value": 100 },
-            { "min": 6, "max": 15, "value": 70 },
+            { "min": 5, "max": 15, "value": 70 },
             { "min": 15, "max": 30, "value": 60 }
           ],
-          "cooldown": 35
+          "cooldown": 50
         },
         "dispersion": [
-          { "key": "Dispersion", "value": 2.5 },
+          { "key": "Dispersion", "value": 2 },
           { "key": "Dispersion (charged)", "value": 0 }
         ],
         "stats": [
-          { "key": "Cadence (rpm)", "value": 162, "display": "value" },
+          { "key": "Cadence (rpm)", "value": 150, "display": "value" },
           { "key": "Capacity", "value": 8, "display": "value" },
           { "key": "Reload (s)", "value": 2, "display": "value" },
           { "key": "Bullet speed (m/s)", "value": 5000, "display": "value" },
